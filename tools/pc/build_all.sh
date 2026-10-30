@@ -264,7 +264,7 @@ ls -l build-pc-dist/*.zip build-pc-dist/*.tar.gz build-pc-dist/*.AppImage* 2>/de
 cat <<EOF
 
 Unpack the download anywhere, put your ROMs in its roms folder (any names: English Black, White,
-Black 2 and White 2; SoulSilver, HeartGold and Platinum US) and start Pokemon DS Launcher.exe
+Black 2, White 2, SoulSilver, HeartGold and Platinum, US or Europe) and start Pokemon DS Launcher.exe
 (Linux: pokemon-ds-wide).
 The downloads hold only the program: nothing of the games.
 EOF
