@@ -108,11 +108,12 @@ struct Canvas
             { 0x00, 0x0E, 0x11, 0x11, 0x11, 0x0E, 0x00 },
             { 0x00, 0x1F, 0x11, 0x11, 0x11, 0x1F, 0x00 },
             { 0x00, 0x04, 0x0A, 0x0A, 0x11, 0x1F, 0x00 },
+            { 0x18, 0x19, 0x02, 0x04, 0x08, 0x13, 0x03 }, // % (VOLUME)
         };
         if (c >= 'a' && c <= 'z') c -= 32;
         if (c >= 'A' && c <= 'Z') return font[c - 'A'];
         if (c >= '0' && c <= '9') return font[26 + c - '0'];
-        static const char punct[] = ":-+./<>!()\x01\x02\x03\x04";
+        static const char punct[] = ":-+./<>!()\x01\x02\x03\x04%";
         const char* p = c ? strchr(punct, c) : nullptr;
         return p ? font[36 + (p - punct)] : nullptr;
     }
@@ -144,6 +145,7 @@ struct MenuItem
     std::string label;
     std::string value; // shown right-aligned; empty for plain actions
     bool info = false; // the value is only shown (no < > around it): nothing to change here
+    int slider = -1;   // 0 to 10: also drawn as a bar of ten blocks, that many lit (VOLUME)
 };
 
 struct Menu
@@ -179,6 +181,17 @@ struct Menu
     // row shown (a list longer than the screen scrolls with the chosen row: CHEATS).
     mutable int drawnX = 0, drawnY = 0, drawnW = 0, drawnH = 0, drawnLineH = 0, drawnFirstY = 0;
     mutable int scroll = 0;
+    // Where a slider's bar was drawn (the same on every row): its left edge and one block's step.
+    mutable int barX = 0, barStep = 0;
+
+    // The value a tap at x on a slider's row stands for (0 to 10: the block tapped and those
+    // before it; left of the bar, 0), or -1 for a tap beside the bar.
+    int SliderAt(int x) const
+    {
+        if (barStep <= 0 || x >= barX + 10 * barStep + barStep / 2) return -1;
+        if (x < barX) return x >= barX - 2 * barStep ? 0 : -1;
+        return std::min(10, (x - barX) / barStep + 1);
+    }
 
     // The row at (x, y) of the canvas the menu was drawn on (touch screens): its index, -1 for
     // a point in the box but on no row, -2 for a point outside the box.
@@ -258,7 +271,18 @@ struct Menu
             if (!items[i].value.empty())
             {
                 std::string v = items[i].info ? items[i].value : "< " + items[i].value + " >";
-                c.Text(bx + boxW - 6 * scale - Canvas::TextWidth(v, scale), y, v, scale, col);
+                // (A slider's value right-aligned in room for its widest, "< 100% >", the bar left
+                // of it, so the bar stays put as the number changes.)
+                const int vx = bx + boxW - 6 * scale - Canvas::TextWidth(items[i].slider >= 0 ? "< 100% >" : v, scale);
+                c.Text(items[i].slider >= 0 ? bx + boxW - 6 * scale - Canvas::TextWidth(v, scale) : vx, y, v, scale, col);
+                if (items[i].slider >= 0)
+                {
+                    barStep = 5 * scale;
+                    barX = vx - 4 * scale - 10 * barStep;
+                    for (int k = 0; k < 10; k++)
+                        c.Fill(barX + k * barStep, y, 4 * scale, 7 * scale,
+                               k < items[i].slider ? (sel ? 0xFFFFFFFF : 0xFFC8D0E0) : (sel ? 0xFF6C8FD8 : 0xFF3A4A6A));
+                }
             }
             y += lineH;
         }

@@ -3935,6 +3935,7 @@ int main(int argc, char** argv)
     // keyboard or a phone's on-screen one (SDL's text input). The password goes to the server once
     // and is then forgotten.
     int raTyping = 0;
+    int sliderTap = -1; // a tap on a slider's bar (Menu::SliderAt): the value, for its row's action
     std::string raTyped, raUser;
     std::vector<int> menuIds;
     bool fastLock = false;
@@ -4001,6 +4002,7 @@ int main(int argc, char** argv)
             add(M_LOADSTATE, "LOAD STATE", "");
             add(M_FAST, "FAST FORWARD", onOff(fastLock));
             add(M_VOLUME, "VOLUME", cfg.volume == 0 ? std::string("OFF") : std::to_string(cfg.volume) + "%");
+            menu.items.back().slider = cfg.volume / 10;
             add(M_DISPLAY, "DISPLAY", "");
             add(M_GRAPHICS, "GRAPHICS", "");
             add(M_CONTROLMENU, "CONTROLS", "");
@@ -4732,7 +4734,13 @@ int main(int argc, char** argv)
                 else if (item >= 0)
                 {
                     menu.selected = item;
-                    if (menu.items[item].value.empty()) nav.accept = true;
+                    // (A slider's bar: the volume tapped, straight away.)
+                    if (menu.items[item].slider >= 0 && menu.SliderAt((int)fx) >= 0)
+                    {
+                        sliderTap = menu.SliderAt((int)fx);
+                        nav.accept = true;
+                    }
+                    else if (menu.items[item].value.empty()) nav.accept = true;
                     else if (fx < menu.drawnX + menu.drawnW / 3) nav.left = true;
                     else nav.right = true;
                 }
@@ -5425,8 +5433,11 @@ int main(int argc, char** argv)
                 fastLock = !fastLock;
                 break;
             case M_VOLUME:
-                // (Left goes down, right and A up; past 100 it comes round to OFF, and back.)
-                cfg.volume = (cfg.volume + (dir < 0 ? 100 : 10)) % 110;
+                // (Left goes down, right and A up; past 100 it comes round to OFF, and back. A
+                // tap on the bar sets it to the block tapped.)
+                if (sliderTap >= 0) cfg.volume = sliderTap * 10;
+                else cfg.volume = (cfg.volume + (dir < 0 ? 100 : 10)) % 110;
+                sliderTap = -1;
                 break;
 #if !defined(__SWITCH__) && !defined(SSR_PHONE)
             case M_FFLOWRES:
