@@ -945,10 +945,14 @@ struct WideAccess
     static void ExtendToEdges(Polygon** list, u32 count, float view, bool interp)
     {
         static const bool off = getenv("SSR_WIDE_NO_EXTEND") != nullptr; // (to compare)
-        // (To compare too: SSR_WIDE_EXTEND_ONLY=far continues only the layers of the distance,
-        // =near only the rest. SSR_WIDE_EXTEND_TRACE=1 writes each frame's decisions, one line a
-        // polygon, to find one that is continued in some frames and not others: a flicker.)
-        static const char only = getenv("SSR_WIDE_EXTEND_ONLY") ? getenv("SSR_WIDE_EXTEND_ONLY")[0] : 0;
+        // Only the layers of the distance are continued, not what is nearer: on the stairs to
+        // Aspertia's lookout the ground, a tree and a wall at the view's right edge, continued in
+        // some frames and not others as the camera moved, flickered (James, on his PC; what the
+        // game draws beyond them, Black 2's wider map, frontend/bw2map.h, is better than a
+        // stretched cliff in any case). (To compare: SSR_WIDE_EXTEND_ONLY=all continues both, as
+        // before, =near only the nearer ones. SSR_WIDE_EXTEND_TRACE=1 writes each frame's
+        // decisions, one line a polygon, to find one continued in some frames and not others.)
+        static const char only = getenv("SSR_WIDE_EXTEND_ONLY") ? getenv("SSR_WIDE_EXTEND_ONLY")[0] : 'f';
         static const bool trace = getenv("SSR_WIDE_EXTEND_TRACE") != nullptr;
         static u32 traceCall = 0;
         if (trace) traceCall++;
