@@ -163,7 +163,7 @@ DS game, presented the way it should look on a modern screen.
 
 ## On a PC, Mac, Steam Deck or handheld (Windows, macOS and Linux)
 
-![The PC game list: Black, White, Black 2, White 2, HeartGold, SoulSilver and Platinum in a grid on black, White 2 chosen in red with its save found](docs/screenshots/pc-game-list.png)
+![The game list: POKÉMON FULLDEX with the tabs ALL, DS, GBA and 3DS; scrolling down past the DS games (Black, White, Black 2, White 2, HeartGold, SoulSilver, Platinum) to the GBA games (Emerald, Ultra Violet, FireRed, LeafGreen) and Omega Ruby, COMING SOON; then each tab, and the settings page](docs/screenshots/game-list.gif)
 
 1. **Download** [`pokemon-ds-wide-pc-windows-x86_64.zip`](../../releases/tag/pc-v1)
    (Windows) or [`pokemon-ds-wide-pc-linux-x86_64.tar.gz`](../../releases/tag/pc-v1) (Linux).
@@ -195,7 +195,7 @@ under that name. **Pictures**: the list shows each game's box art; for your own,
 put a JPEG or PNG in an `icons` folder beside the program, named after the game's
 code (`IREO.jpg` for Black 2, see the `README.txt`).
 
-![The settings page: each option with its value and what it does, 3D RESOLUTION chosen at 1080P](docs/screenshots/pc-settings-page.png)
+![The settings page: its groups (DISPLAY, SOUND, GRAPHICS, CONTROLS, SHORTCUTS, GAME LIST, HELP), each with the options in it](docs/screenshots/settings-page.png)
 
 **Settings** (all of them: [Settings](#settings)). The ones that matter most on a PC:
 
@@ -261,7 +261,7 @@ Tell us how yours runs, with its `game.log`.
 
 ## On the Nintendo Switch
 
-![The Switch game list: Black, White, Black 2, White 2, HeartGold, SoulSilver and Platinum in a grid on black, Black 2 chosen in red with its save found](docs/screenshots/all-games-launcher.png)
+![The Switch game list: the DS games, the GBA games and Omega Ruby (COMING SOON) under their headings, with tabs for each console](docs/screenshots/game-list.gif)
 
 **All seven games in one program** (`pokemon-ds-wide-all-switch.zip`):
 
