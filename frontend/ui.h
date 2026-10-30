@@ -143,6 +143,7 @@ struct MenuItem
 {
     std::string label;
     std::string value; // shown right-aligned; empty for plain actions
+    bool info = false; // the value is only shown (no < > around it): nothing to change here
 };
 
 struct Menu
@@ -256,7 +257,7 @@ struct Menu
             c.Text(bx + 6 * scale, y, items[i].label, scale, col);
             if (!items[i].value.empty())
             {
-                std::string v = "< " + items[i].value + " >";
+                std::string v = items[i].info ? items[i].value : "< " + items[i].value + " >";
                 c.Text(bx + boxW - 6 * scale - Canvas::TextWidth(v, scale), y, v, scale, col);
             }
             y += lineH;

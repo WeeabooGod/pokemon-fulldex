@@ -87,8 +87,16 @@ target_include_directories(gamecode PRIVATE melonDS/src runtime "${SSR_GENERATED
 target_compile_options(gamecode PRIVATE -O1 -g0 -fno-exceptions -fno-rtti "$<$<COMPILE_LANGUAGE:CXX>:-fno-stack-protector>"
     "$<$<COMPILE_LANGUAGE:ASM>:-Wa,-I${SSR_GENERATED_DIR}>")
 
+# RetroAchievements (frontend/achievements.cpp): RetroAchievements' own rcheevos library, as it
+# comes (frontend/thirdparty/rcheevos, MIT).
+file(GLOB_RECURSE SSR_RCHEEVOS_SOURCES "${CMAKE_CURRENT_SOURCE_DIR}/frontend/thirdparty/rcheevos/src/*.c")
+add_library(rcheevos STATIC ${SSR_RCHEEVOS_SOURCES})
+target_include_directories(rcheevos PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}/frontend/thirdparty/rcheevos/include")
+
 set(SSRECOMP_SOURCES
     frontend/main.cpp
+    frontend/achievements.cpp
+    frontend/achievements_http.cpp
     frontend/platform.cpp
     runtime/recomp_rt.cpp
     runtime/recomp_mem.cpp
@@ -346,6 +354,24 @@ if((SSR_PC_ALL_GAMES OR SSR_ALL_GAMES) AND SSR_PC_ART AND IS_DIRECTORY "${SSR_PC
     target_sources(ssrecomp PRIVATE "${CMAKE_CURRENT_BINARY_DIR}/pc_art.cpp")
     target_compile_definitions(ssrecomp PRIVATE SSR_PC_ART)
 endif()
+# RetroAchievements: the library, and each platform's way to the internet (achievements_http.cpp);
+# the program's version, which the server is told with its name, from CHANGELOG.md's newest release.
+target_link_libraries(ssrecomp PRIVATE rcheevos)
+if(WIN32)
+    target_link_libraries(ssrecomp PRIVATE winhttp)
+elseif(UNIX AND NOT APPLE AND NOT ANDROID AND NOT SSR_SWITCH)
+    target_link_libraries(ssrecomp PRIVATE ${CMAKE_DL_LIBS})
+endif()
+set(SSR_RA_VERSION "0.0.0")
+if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/CHANGELOG.md")
+    file(STRINGS "${CMAKE_CURRENT_SOURCE_DIR}/CHANGELOG.md" _ssr_releases REGEX "^## v[0-9]")
+    if(_ssr_releases)
+        list(GET _ssr_releases 0 SSR_RA_VERSION)
+        string(REGEX REPLACE "^## v([0-9.]+).*" "\\1" SSR_RA_VERSION "${SSR_RA_VERSION}")
+    endif()
+endif()
+target_compile_definitions(ssrecomp PRIVATE SSR_RA_VERSION="${SSR_RA_VERSION}")
+
 if(SSR_GPU3D)
     if(WIN32)
         target_sources(ssrecomp PRIVATE frontend/glcontext_wgl.cpp)

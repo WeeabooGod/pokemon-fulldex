@@ -19,6 +19,10 @@ namespace melonDS { class NDS; }
 namespace Achievements
 {
 
+// Whether this platform can reach the server yet (achievements_http.cpp): where it cannot, the
+// pause menu has no RETROACHIEVEMENTS.
+bool Available();
+
 // What the settings file keeps (ra=, ra_user=, ra_token=).
 struct Account
 {
@@ -30,8 +34,11 @@ struct Account
 // saved with `save`), and the program's name and version as the server should know it
 // ("PokemonDSWidescreen/0.4.2"). Logs in with the token if achievements are on.
 void Start(Account* account, const std::string& product, std::function<void()> save);
-// The game, once its console exists: its ROM (for the fingerprint).
-void SetGame(melonDS::NDS* nds, const std::vector<uint8_t>& rom);
+// The ROM's fingerprint, by which RetroAchievements finds the game's set (empty: none). Taken
+// before the ROM is let go of (the cartridge keeps its own copy).
+std::string Fingerprint(const std::vector<uint8_t>& rom);
+// The game, once its console exists and achievements have started: its fingerprint.
+void SetGame(melonDS::NDS* nds, const std::string& fingerprint);
 // Whether this game's achievements are being followed (on, logged in, a set found, no cheats).
 bool Active();
 
@@ -49,8 +56,10 @@ void SetCheats(bool anyOn);
 void SetOn(bool on);
 void Login(const std::string& user, const std::string& password);
 void Logout();
-std::string AccountLine(); // "LOGGED IN AS JAMES", "NOT LOGGED IN", "LOGGING IN..."
-std::string GameLine();    // "12 OF 50 UNLOCKED", "NO ACHIEVEMENTS FOR THIS ROM", ...
+std::string AccountLine(); // the user name, "NOT LOGGED IN", "LOGGING IN...", "LOGIN FAILED"
+std::string GameLine();    // "12 OF 50 UNLOCKED", "NONE FOR THIS ROM", "LOADING...", ...
+std::string Detail();      // what went wrong last (a login, the game's set), for a hint line
+bool LoggedIn();           // an account is kept (its token)
 bool Busy();               // a login or the game's set is on its way
 
 // Messages for the player (an unlock, a login that failed, ...), in the menus' font.

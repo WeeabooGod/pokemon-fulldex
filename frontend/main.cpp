@@ -17,6 +17,10 @@
 #include <thread>
 #include "sampler.h"
 #include "ssr_os.h"
+#include "achievements.h"
+#ifndef SSR_RA_VERSION
+#define SSR_RA_VERSION "0.0.0" // (CMakeLists.txt sets it from CHANGELOG.md)
+#endif
 #include <vector>
 #include <tuple>
 #include <deque>
@@ -844,10 +848,15 @@ static void ApplyRenderer3D(NDS& nds, bool gpu)
             soft->SetThreaded(true, nds.GPU);
 }
 
+// RETROACHIEVEMENTS is on (read from the settings file before the console is made): WIDE MAP
+// LOADING is left off, as it gives the console more memory and the game's map more of it, which
+// can move what achievements read.
+static bool AchievementsOn = false;
+
 static std::unique_ptr<NDS> MakeConsole(const std::vector<uint8_t>& rom, const std::vector<uint8_t>& sav, bool fixedClock)
 {
     // Black 2 and White 2 (US) get 8 MB of main RAM, for their wider map (frontend/bw2map.h).
-    const bool largeMainRAM = Bw2Map::WantsLargeRAM(rom);
+    const bool largeMainRAM = !AchievementsOn && Bw2Map::WantsLargeRAM(rom);
     NDSCart::NDSCartArgs cartArgs;
     if (!sav.empty())
     {
@@ -1339,6 +1348,9 @@ struct Settings
     // The PC all-games program: the window's size when it last closed (0: 1280x720, a wide view).
     int windowW = 0, windowH = 0;
     Controls::Bindings controls; // CONTROLS (controls.h): map_key_* and map_pad_* lines
+    // RETROACHIEVEMENTS (achievements.h): on or off (off to start), and the account's user name
+    // and the token the server gave at login (never the password).
+    Achievements::Account ra;
 
     void Load(const std::string& path)
     {
@@ -1387,6 +1399,9 @@ struct Settings
             else if (k == "gpu3d_test") gpu3d = v == "1";
             else if (k == "wide_gpu") wideGpu = v == "1";
             else if (k == "ds3d_gpu") ds3dGpu = v != "0";
+            else if (k == "ra") ra.on = v == "1";
+            else if (k == "ra_user") ra.user = v;
+            else if (k == "ra_token") ra.token = v;
             else if (k == "battle_buttons") battleButtons = v == "corner" ? 0 : v == "panel" ? 2 : 1;
             else if (k == "window")
             {
@@ -1422,6 +1437,9 @@ struct Settings
         f << "start_button=" << (startMenu ? "menu" : "ds") << "\n";
         f << "battle_buttons=" << (battleButtons == 0 ? "corner" : battleButtons == 2 ? "panel" : "strip") << "\n";
         controls.Save(f);
+        f << "ra=" << (ra.on ? 1 : 0) << "\n";
+        if (!ra.user.empty()) f << "ra_user=" << ra.user << "\n";
+        if (!ra.token.empty()) f << "ra_token=" << ra.token << "\n";
 #ifdef SSR_PC_LAUNCHER
         if (windowW > 0 && windowH > 0) f << "window=" << windowW << "x" << windowH << "\n";
 #endif
@@ -1578,6 +1596,14 @@ int main(int argc, char** argv)
 
     std::vector<uint8_t> sav = ReadFile(opt.save);
     fprintf(stderr, "ROM %s: %zu bytes; save %s: %zu bytes\n", opt.rom.c_str(), rom.size(), opt.save.c_str(), sav.size());
+    // (RETROACHIEVEMENTS from the settings file now: the console is made differently with it on.)
+    if (!opt.headless && !opt.lockstep && Achievements::Available())
+    {
+        std::ifstream f(opt.config);
+        std::string line;
+        while (std::getline(f, line))
+            if (line == "ra=1" || line == "ra=1\r") AchievementsOn = true;
+    }
     auto nds = MakeConsole(rom, sav, opt.headless);
     if (!nds) return 1;
     // Cheats (cheats.h): from the cheats folder beside the saves, the ones that are on running
@@ -1608,6 +1634,8 @@ int main(int argc, char** argv)
         ref->ARM9.TraceHook = TraceRecord;
         nds->ARM9.TraceHook = TraceCompare;
     }
+    // (RETROACHIEVEMENTS finds the game's set by the ROM's fingerprint: taken while the ROM is here.)
+    const std::string romFingerprint = !opt.headless && !opt.lockstep ? Achievements::Fingerprint(rom) : std::string();
     // The cartridge has its own copy now; Black 2's ROM is about 300 MB, which counts on the Switch.
     rom.clear();
     rom.shrink_to_fit();
@@ -1737,6 +1765,15 @@ int main(int argc, char** argv)
 #endif
 #endif
     if (!opt.headless) cfg.Load(opt.config);
+    // RETROACHIEVEMENTS (achievements.h): the account logs in (when it is on) and this game's
+    // achievements load as the game starts. Not in a test run (headless, lockstep).
+    if (!opt.headless && !opt.lockstep && Achievements::Available())
+    {
+        const std::string cfgPath = opt.config;
+        Achievements::Start(&cfg.ra, std::string("PokemonDSWidescreen/") + SSR_RA_VERSION, [&cfg, cfgPath]() { cfg.Save(cfgPath); });
+        Achievements::SetGame(nds.get(), romFingerprint);
+        Achievements::SetCheats(cheats.On() > 0);
+    }
 #ifdef __SWITCH__
     // Not in the Switch's pause menu any more, so what an older version saved is not kept: the
     // world on the graphics chip, one frame ahead, and the stick touch cursor (the right stick
@@ -2251,7 +2288,7 @@ int main(int argc, char** argv)
                 if (fseek(rf, 0x0C, SEEK_SET) != 0 || fread(code, 1, 4, rf) != 4) code[0] = 0;
                 fclose(rf);
             }
-            bw2map.Init(code, funcWatch, bw2Names, *nds, cfg.wide && cfg.wideMap);
+            bw2map.Init(code, funcWatch, bw2Names, *nds, cfg.wide && cfg.wideMap && !AchievementsOn);
         }
         // Only these are watched (all functions for --trace-funcs).
         funcWatch.Attach(*nds, opt.traceFuncsAt.empty() ? bw2Names : std::vector<std::string>());
@@ -3869,9 +3906,15 @@ int main(int argc, char** argv)
         M_WIDELINES, M_AUTODETAIL, M_WIDEGPU, M_GPU3D, M_SHOWFPS, M_BUTTONS, M_PADTOUCH, M_EMULATION,
         M_CONTROLS, M_STARTBTN, M_FAST, M_FFLOWRES, M_SAVESTATE, M_LOADSTATE, M_RESET, M_QUIT,
         M_DISPLAY, M_GRAPHICS, M_CONTROLMENU, M_BACK, M_CHEATS, M_NOTHING,
+        M_RA, M_RA_ON, M_RA_ACCOUNT, M_RA_GAME, M_RA_LOGIN, M_RA_TYPED, M_RA_CANCEL,
         M_CHEAT0 = 1000 // (M_CHEAT0 + i: cheat i, CHEATS)
     };
-    enum { PAGE_MAIN, PAGE_KEYS, PAGE_DISPLAY, PAGE_GRAPHICS, PAGE_CONTROLS, PAGE_CHEATS };
+    enum { PAGE_MAIN, PAGE_KEYS, PAGE_DISPLAY, PAGE_GRAPHICS, PAGE_CONTROLS, PAGE_CHEATS, PAGE_RA };
+    // RETROACHIEVEMENTS' LOG IN: the user name typed (raTyping 1), then the password (2), on the
+    // keyboard or a phone's on-screen one (SDL's text input). The password goes to the server once
+    // and is then forgotten.
+    int raTyping = 0;
+    std::string raTyped, raUser;
     std::vector<int> menuIds;
     bool fastLock = false;
     double ffFrameMs = 0; // emulation time of one frame while fast forwarding (see speed)
@@ -3925,8 +3968,8 @@ int main(int argc, char** argv)
 #endif
         menu.items.clear();
         menuIds.clear();
-        auto add = [&](int id, const char* label, const std::string& value) {
-            menu.items.push_back({ label, value });
+        auto add = [&](int id, const char* label, const std::string& value, bool info = false) {
+            menu.items.push_back({ label, value, info });
             menuIds.push_back(id);
         };
         auto onOff = [](bool on) { return std::string(on ? "ON" : "OFF"); };
@@ -3940,6 +3983,7 @@ int main(int argc, char** argv)
             add(M_GRAPHICS, "GRAPHICS", "");
             add(M_CONTROLMENU, "CONTROLS", "");
             add(M_CHEATS, "CHEATS", cheats.On() ? std::to_string(cheats.On()) + " ON" : "");
+            if (Achievements::Available()) add(M_RA, "RETROACHIEVEMENTS", onOff(cfg.ra.on));
             add(M_RESET, "RESET GAME", "");
             add(M_QUIT, "QUIT", "");
         }
@@ -4015,6 +4059,24 @@ int main(int argc, char** argv)
                 add(M_CHEAT0 + (int)i, cheats.items[i].name.c_str(), cheats.items[i].on ? "ON" : "OFF");
             add(M_BACK, "BACK", "");
         }
+        else if (menuPage == PAGE_RA)
+        {
+            if (raTyping)
+            {
+                // (The password as a count: the menus' font has no small letters, and it is not shown.)
+                add(M_RA_TYPED, raTyping == 1 ? "USER NAME" : "PASSWORD",
+                    raTyping == 1 ? (raTyped.empty() ? std::string("...") : Cheats::Shown(raTyped, 18)) : std::to_string(raTyped.size()) + " CHARACTERS", true);
+                add(M_RA_CANCEL, "CANCEL", "");
+            }
+            else
+            {
+                add(M_RA_ON, "RETROACHIEVEMENTS", onOff(cfg.ra.on));
+                add(M_RA_ACCOUNT, "ACCOUNT", Achievements::AccountLine(), true);
+                add(M_RA_GAME, "THIS GAME", cfg.ra.on ? Achievements::GameLine() : "-", true);
+                add(M_RA_LOGIN, Achievements::LoggedIn() ? "LOG OUT" : "LOG IN", "");
+                add(M_BACK, "BACK", "");
+            }
+        }
         else if (menuPage == PAGE_CONTROLS)
         {
             add(M_CONTROLS, "KEYS AND BUTTONS", "");
@@ -4038,6 +4100,37 @@ int main(int argc, char** argv)
             if (menuIds[i] == select) menu.selected = (int)i;
     };
     buildMenu();
+    // RETROACHIEVEMENTS' LOG IN: on from the user name to the password, and the login; or not.
+    auto raCancel = [&]() {
+        raTyping = 0;
+        raTyped.clear();
+        SDL_StopTextInput();
+        goPage(PAGE_RA, M_RA_LOGIN);
+    };
+    auto raNext = [&]() {
+        if (raTyped.empty())
+        {
+            SDL_StartTextInput(); // (a phone's keyboard closed before anything was typed: again)
+            return;
+        }
+        if (raTyping == 1)
+        {
+            raUser = raTyped;
+            raTyped.clear();
+            raTyping = 2;
+        }
+        else
+        {
+            Achievements::Login(raUser, raTyped);
+            std::fill(raTyped.begin(), raTyped.end(), '\0');
+            raTyped.clear();
+            raTyping = 0;
+            SDL_StopTextInput();
+            goPage(PAGE_RA, M_RA_ACCOUNT); // (where the login's progress shows)
+            return;
+        }
+        buildMenu();
+    };
 
     std::string toast;
     uint32_t toastUntil = 0;
@@ -4240,6 +4333,7 @@ int main(int argc, char** argv)
             rc_frame++;
             if (funcWatchOn) funcWatch.NextFrame();
             nds->RunFrame();
+            Achievements::DoFrame(); // (on this thread: it reads the game's memory)
             int avail = nds->SPU.GetOutputSize();
             if (avail > (int)audioBuf.size() / 2) avail = (int)audioBuf.size() / 2;
             int n = nds->SPU.ReadOutput(audioBuf.data(), avail);
@@ -4622,6 +4716,12 @@ int main(int argc, char** argv)
             while (SDL_PollEvent(&ev))
             {
                 if (ev.type == SDL_QUIT) running = false;
+                else if (ev.type == SDL_TEXTINPUT && menu.open && raTyping)
+                {
+                    raTyped += ev.text.text;
+                    if (raTyped.size() > 128) raTyped.resize(128);
+                    buildMenu();
+                }
 #ifdef __SWITCH__
                 else if (ev.type == SDL_FINGERDOWN || ev.type == SDL_FINGERMOTION || ev.type == SDL_FINGERUP)
                 {
@@ -4686,7 +4786,21 @@ int main(int argc, char** argv)
                     const int sc = ev.key.keysym.scancode;
                     // (The action CONTROLS gives this key, if any: those keys do that and nothing else.)
                     const int act = cfg.controls.ActionOfKey(sc);
-                    if (menu.open && capturing >= 0)
+                    if (menu.open && raTyping)
+                    {
+                        // LOG IN: typing (SDL_TEXTINPUT, above); ENTER goes on, ESC leaves it.
+                        if (k == SDLK_ESCAPE || k == SDLK_AC_BACK) raCancel();
+                        else if (k == SDLK_RETURN || k == SDLK_KP_ENTER) raNext();
+                        else if (k == SDLK_BACKSPACE && !raTyped.empty())
+                        {
+                            // (One letter back, a whole one in UTF-8.)
+                            raTyped.pop_back();
+                            while (!raTyped.empty() && ((unsigned char)raTyped.back() & 0xC0) == 0x80) raTyped.pop_back();
+                            if (!raTyped.empty() && ((unsigned char)raTyped.back() & 0xC0) == 0xC0) raTyped.pop_back();
+                            buildMenu();
+                        }
+                    }
+                    else if (menu.open && capturing >= 0)
                     {
                         // CONTROLS waiting for a key: ESC leaves it as it was.
                         if (k != SDLK_ESCAPE && k != SDLK_AC_BACK && ctlKeyboard)
@@ -4719,6 +4833,7 @@ int main(int argc, char** argv)
                     else if (k == SDLK_F8)
                     {
                         say(ReadSnapshot(*nds, quickState, nullptr) ? "STATE LOADED" : "NO STATE TO LOAD");
+                        Achievements::Reset();
                         SetClock(*nds, false);
                     }
                     else if (k == SDLK_F11
@@ -5044,12 +5159,27 @@ int main(int argc, char** argv)
             menu.open = !menu.open;
             menuPage = 0;
             capturing = -1;
+            if (raTyping)
+            {
+                raTyping = 0;
+                raTyped.clear();
+                SDL_StopTextInput();
+            }
             if (menu.open)
             {
                 menu.selected = 0;
                 buildMenu();
             }
             else swallowMenuButtons = true;
+        }
+        else if (menu.open && menuPage == PAGE_RA && raTyping)
+        {
+            // LOG IN, typing: A (or a tap) on the row goes on, B or CANCEL leaves it.
+            int dir = 0;
+            const int hit = nav.back ? -2 : menu.Update(nav, dir);
+            const int id = hit >= 0 && hit < (int)menuIds.size() ? menuIds[hit] : -1;
+            if (hit == -2 || id == M_RA_CANCEL) raCancel();
+            else if (id == M_RA_TYPED && dir == 0) raNext();
         }
         else if (menu.open && menuPage == PAGE_KEYS)
         {
@@ -5080,7 +5210,7 @@ int main(int argc, char** argv)
             if (nav.back && menuPage != PAGE_MAIN)
             {
                 backTo = menuPage == PAGE_DISPLAY ? M_DISPLAY : menuPage == PAGE_GRAPHICS ? M_GRAPHICS
-                       : menuPage == PAGE_CHEATS ? M_CHEATS : M_CONTROLMENU;
+                       : menuPage == PAGE_CHEATS ? M_CHEATS : menuPage == PAGE_RA ? M_RA : M_CONTROLMENU;
                 nav = MenuInput();
             }
             else if (nav.back)
@@ -5097,6 +5227,7 @@ int main(int argc, char** argv)
             {
                 cheats.Toggle((size_t)(id - M_CHEAT0));
                 cheats.Apply(nds->AREngine);
+                Achievements::SetCheats(cheats.On() > 0);
                 fprintf(stderr, "[cheats] %s %s\n", cheats.items[id - M_CHEAT0].key.c_str(), cheats.items[id - M_CHEAT0].on ? "on" : "off");
             }
             switch (id)
@@ -5104,6 +5235,31 @@ int main(int argc, char** argv)
             case M_CHEATS:
                 goPage(PAGE_CHEATS, -1);
                 hit = -1;
+                break;
+            case M_RA:
+                goPage(PAGE_RA, -1);
+                hit = -1;
+                break;
+            case M_RA_ON:
+                // (WIDE MAP LOADING follows at the next start: the console is made with it.)
+                Achievements::SetOn(!cfg.ra.on);
+                if (bw2map.Supported() && cfg.wideMap) say(cfg.ra.on ? "WIDE MAP LOADING OFF FROM THE NEXT START" : "WIDE MAP LOADING BACK FROM THE NEXT START");
+                break;
+            case M_RA_LOGIN:
+                if (Achievements::LoggedIn()) Achievements::Logout();
+                else
+                {
+                    raTyping = 1;
+                    raTyped.clear();
+                    SDL_StartTextInput();
+                    goPage(PAGE_RA, M_RA_TYPED);
+                    hit = -1;
+                }
+                break;
+            case M_RA_CANCEL:
+                raTyping = 0;
+                raTyped.clear();
+                SDL_StopTextInput();
                 break;
             case M_DISPLAY:
                 goPage(PAGE_DISPLAY, -1);
@@ -5120,7 +5276,7 @@ int main(int argc, char** argv)
             case M_BACK:
                 if (backTo < 0)
                     backTo = menuPage == PAGE_DISPLAY ? M_DISPLAY : menuPage == PAGE_GRAPHICS ? M_GRAPHICS
-                           : menuPage == PAGE_CHEATS ? M_CHEATS : M_CONTROLMENU;
+                           : menuPage == PAGE_CHEATS ? M_CHEATS : menuPage == PAGE_RA ? M_RA : M_CONTROLMENU;
                 goPage(PAGE_MAIN, backTo);
                 hit = -1;
                 break;
@@ -5249,6 +5405,7 @@ int main(int argc, char** argv)
                 break;
             case M_LOADSTATE:
                 say(ReadSnapshot(*nds, quickState, nullptr) ? "STATE LOADED" : "NO STATE TO LOAD");
+                Achievements::Reset();
                 SetClock(*nds, false);
                 menu.open = false;
                 swallowMenuButtons = true;
@@ -5258,6 +5415,7 @@ int main(int argc, char** argv)
                 nds->SetupDirectBoot("game.nds");
                 nds->Start();
                 rc_reset();
+                Achievements::Reset();
                 say("GAME RESET");
                 menu.open = false;
                 swallowMenuButtons = true;
@@ -5283,6 +5441,15 @@ int main(int argc, char** argv)
         bool anyHeld = false;
         for (int i = 0; i < PAD_COUNT; i++) anyHeld |= ps.btn[i];
         if (swallowMenuButtons && !anyHeld) swallowMenuButtons = false;
+
+        // RETROACHIEVEMENTS: the server's answers and what it has to say (one message at a time),
+        // and its page kept up to date while it is open.
+        Achievements::Pump(menu.open);
+        {
+            std::string m;
+            if (frame >= toastUntil && Achievements::PopMessage(m)) say(m);
+        }
+        if (menu.open && menuPage == PAGE_RA && !raTyping && frame % 20 == 0) buildMenu();
 
         bool paused = menu.open;
         int speed = 1;
@@ -6495,7 +6662,7 @@ int main(int argc, char** argv)
             std::string hint = touchPadUsed && touchPad.visible ? "TAP: CHOOSE   OUTSIDE: BACK"
                                : btn(Controls::A) + ": SELECT   " + btn(Controls::B) + ": BACK";
             const int selId = menu.selected >= 0 && menu.selected < (int)menuIds.size() ? menuIds[menu.selected] : -1;
-            static const char* pageTitle[] = { "", "KEYS AND BUTTONS", "DISPLAY", "GRAPHICS", "CONTROLS", "CHEATS" };
+            static const char* pageTitle[] = { "", "KEYS AND BUTTONS", "DISPLAY", "GRAPHICS", "CONTROLS", "CHEATS", "RETROACHIEVEMENTS" };
             if (menuPage == PAGE_KEYS)
             {
                 if (!(touchPadUsed && touchPad.visible)) hint = btn(Controls::A) + ": CHANGE   " + btn(Controls::B) + ": BACK";
@@ -6519,6 +6686,16 @@ int main(int argc, char** argv)
             if (selId == M_CONTROLS) hint = "GIVE ANY BUTTON ANOTHER KEY OR BUTTON";
             if (selId == M_CHEATS) hint = cheats.items.empty() ? "NONE FOUND: SEE THE README" : "ACTION REPLAY CODES";
             if (selId == M_NOTHING) hint = "GET USRCHEAT.DAT: SEE THE README";
+            // RETROACHIEVEMENTS.
+            // (Each at most about 30 letters: the width of the menu's box.)
+            if (selId == M_RA) hint = "FROM RETROACHIEVEMENTS.ORG";
+            if (selId == M_RA_ON) hint = "CASUAL MODE: NEEDS AN ACCOUNT";
+            if (selId == M_RA_ACCOUNT || selId == M_RA_GAME)
+                hint = !Achievements::Detail().empty() ? Achievements::Detail()
+                     : selId == M_RA_GAME ? "FOUND FROM THE ROM ITSELF" : "YOUR RETROACHIEVEMENTS ACCOUNT";
+            if (selId == M_RA_LOGIN) hint = Achievements::LoggedIn() ? "FORGETS THE ACCOUNT HERE" : "YOUR USER NAME AND PASSWORD";
+            if (selId == M_RA_TYPED)
+                hint = touchPadUsed ? "THEN TAP HERE OR DONE" : ctlHasKeyboard ? "ENTER: NEXT   ESC: CANCEL" : "TYPE IT  THEN A";
             if (selId >= M_CHEAT0 && !(touchPadUsed && touchPad.visible)) hint = btn(Controls::A) + ": ON / OFF   " + btn(Controls::B) + ": BACK";
             const std::string note = selId >= M_CHEAT0 && selId - M_CHEAT0 < (int)cheats.items.size() ? cheats.items[selId - M_CHEAT0].note : std::string();
             menu.Draw(canvas, pageTitle[menuPage], hint, note);
@@ -6673,6 +6850,7 @@ int main(int argc, char** argv)
     };
     exitStep("saving");
     if (!opt.noSave) FlushSave(opt.save);
+    Achievements::Stop();
     if (!opt.headless)
     {
         if (!singleScreenRom) cfg.layout = LayoutName(layout.mode); // the automatic choice is not the player's setting
