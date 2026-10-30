@@ -874,6 +874,33 @@ struct WideAccess
         }
     }
 
+    // A layer of the distance: as far as the furthest thing in the picture, within a tenth (a
+    // sky's panels, its mountains, a far line of trees), or a haze: see-through, at least half
+    // as far, its picture spread thin (no more than a texel for every two DS pixels, across
+    // and down). At Aspertia's lookout the haze in front of the sky is a dome of 16 such panels,
+    // from a little over half as far as the sky to four fifths, whose last column on the right
+    // ended 110 pixels of 1280 short, so the sky and mountains beyond were not hazed over: a
+    // darker block in the corner, and the mountains continued there in their own colours.
+    // (Spread thin: the leaves of Castelia City's trees are see-through and as far, and came
+    // apart in slivers continued.)
+    static bool IsLayer(const Polygon* poly, s32 w1, s32 farW)
+    {
+        if ((s64)w1 * 10 >= (s64)farW * 9) return true;
+        if (!poly->Translucent || (s64)w1 * 2 < farW) return false;
+        if (!((poly->TexParam >> 26) & 7)) return true;
+        s32 x0 = INT32_MAX, x1 = INT32_MIN, y0 = INT32_MAX, y1 = INT32_MIN, s0 = INT32_MAX, s1 = INT32_MIN, t0 = INT32_MAX, t1 = INT32_MIN;
+        for (u32 v = 0; v < poly->NumVertices; v++)
+        {
+            const Vertex* p = poly->Vertices[v];
+            x0 = std::min(x0, p->HiresPosition[0]); x1 = std::max(x1, p->HiresPosition[0]);
+            y0 = std::min(y0, p->HiresPosition[1]); y1 = std::max(y1, p->HiresPosition[1]);
+            s0 = std::min(s0, (s32)p->TexCoords[0]); s1 = std::max(s1, (s32)p->TexCoords[0]);
+            t0 = std::min(t0, (s32)p->TexCoords[1]); t1 = std::max(t1, (s32)p->TexCoords[1]);
+        }
+        // (HiresPosition is in sixteenths of a DS pixel, as texture coordinates are of a texel.)
+        return (s64)(s1 - s0) * 2 <= (s64)(x1 - x0) && (s64)(t1 - t0) * 2 <= (s64)(y1 - y0);
+    }
+
     // The game leaves out what its own screen cannot show, so the wide view can come to the end
     // of a polygon a little short of its edge where the game drew nothing further: a sky made
     // of panels around the camera (Castelia zoomed out by the Pokemon Center: the last panel on
@@ -898,10 +925,10 @@ struct WideAccess
         const s32 gap = full / 12;
         // side: 1 ends in the left strip, 2 the right; w0, w1: its nearest and furthest W (clip
         // space, comparable between polygons, unlike the W normalised for each polygon)
-        struct Box { s32 x0, x1, y0, y1, w0, w1; u8 side; };
+        // tl, bl, tr, br: its top and bottom corners' x, the outermost on each side
+        struct Box { s32 x0, x1, y0, y1, w0, w1; u8 side; s32 tl, bl, tr, br; };
         static thread_local std::vector<Box> boxes;
-        boxes.assign(count, Box { 0, -1, 0, -1, 0, 0, 0 });
-        bool any = false;
+        boxes.assign(count, Box { 0, -1, 0, -1, 0, 0, 0, 0, 0, 0, 0 });
         for (u32 i = 0; i < count; i++)
         {
             const Polygon* poly = list[i];
@@ -917,32 +944,96 @@ struct WideAccess
                 const s32 w = poly->Vertices[v]->Position[3];
                 b.w0 = std::min(b.w0, w); b.w1 = std::max(b.w1, w);
             }
-            if (b.x1 - b.x0 < full / 10) continue;
-            if (b.x0 > 0 && b.x0 <= gap && b.x0 < dsLeft) b.side |= 1;
-            if (b.x1 < full && b.x1 >= full - gap && b.x1 > dsRight) b.side |= 2;
-            any |= b.side != 0;
+            b.tl = b.bl = INT32_MAX;
+            b.tr = b.br = INT32_MIN;
+            for (u32 v = 0; v < poly->NumVertices; v++)
+            {
+                const s32* p = poly->Vertices[v]->HiresPosition;
+                if (p[1] == b.y0) { b.tl = std::min(b.tl, p[0]); b.tr = std::max(b.tr, p[0]); }
+                if (p[1] == b.y1) { b.bl = std::min(b.bl, p[0]); b.br = std::max(b.br, p[0]); }
+            }
         }
-        if (!any) return;
         // The furthest W in the picture: a sky's layers are about as far as anything.
         s32 farW = 0;
         for (const Box& b : boxes)
             if (b.x1 >= b.x0) farW = std::max(farW, b.w1);
+        bool any = false;
+        for (u32 i = 0; i < count; i++)
+        {
+            Box& b = boxes[i];
+            if (b.x1 < b.x0 || b.x1 - b.x0 < full / 10) continue;
+            // A layer of the backdrop (as far as the furthest thing, within a tenth: the sky, its
+            // mountains, haze and far line of trees) is continued from wherever past the DS
+            // screen's edge it ends: the game cuts those off at its own screen's edge plus a
+            // margin that varies with the camera. At Aspertia's lookout the mountains ended 125
+            // pixels of 1280 short (more than a twelfth), so they and the sky's plain colour
+            // behind them stopped in a hard edge while the haze and clouds in front, ending
+            // nearer the edge, were continued over nothing: a darker block in the corner.
+            const bool backdrop = IsLayer(list[i], b.w1, farW);
+            const s32 reach = backdrop ? full / 2 : gap;
+            // (A layer whose end is slanted, reaching the view's edge at its top and ending short of
+            // it at its bottom, or the other way round, counts as ending at its shorter corner:
+            // at Aspertia's lookout the sky's left panel came down from the top left corner to a
+            // tenth of the way across at the horizon, its next panel to the left left out, so the
+            // rear plane's paler colour showed in a wedge.)
+            const bool slanted = backdrop && !list[i]->Translucent && b.y0 <= 0 && (b.x0 <= 0) != (b.x1 >= full);
+            const s32 x0 = b.x0 > 0 || !slanted ? b.x0 : std::max(b.tl, b.bl);
+            const s32 x1 = b.x1 < full || !slanted ? b.x1 : std::min(b.tr, b.br);
+            if (x0 > 0 && x0 <= reach && x0 < dsLeft) b.side |= 1;
+            if (x1 < full && x1 >= full - reach && x1 > dsRight) b.side |= 2;
+            any |= b.side != 0;
+        }
+        if (log)
+            for (u32 i = 0; i < count; i++)
+            {
+                const Box& b = boxes[i];
+                if (b.x1 < b.x0 || !IsLayer(list[i], b.w1, farW)) continue;
+                fprintf(stderr, "[extend] backdrop %u: x %d-%d y %d-%d w %d-%d side %d translucent %d alpha %u tex %08x verts %u\n", i,
+                    b.x0, b.x1, b.y0, b.y1, b.w0, b.w1, b.side, list[i]->Translucent ? 1 : 0, (list[i]->Attr >> 16) & 31,
+                    list[i]->TexParam, list[i]->NumVertices);
+            }
+        if (!any) return;
         for (u32 i = 0; i < count; i++)
         {
             const Box b = boxes[i];
             if (!b.side) continue;
+            const bool layer = IsLayer(list[i], b.w1, farW);
             const bool farBox = (s64)b.w1 * 10 >= (s64)farW * 9, distant = (s64)b.w1 * 10 >= (s64)farW * 6;
+            // (A layer of the backdrop is not held back by anything small beside it, less than a
+            // tenth of the view wide that shares none of its corners: something standing in
+            // front of the distance, a far tree on the horizon, which the depth keeps in front of
+            // what is continued. At Aspertia's lookout the trees on the hill to the east held back
+            // the mountains, which then ended in a hard edge. Anything larger still does: the
+            // wall beside the back wall of Route 19's gate.)
+            auto sharesCorner = [&](u32 j) {
+                const Polygon* p = list[i];
+                const Polygon* q = list[j];
+                for (u32 u = 0; u < p->NumVertices; u++)
+                    for (u32 v = 0; v < q->NumVertices; v++)
+                        if (p->Vertices[u] == q->Vertices[v] ||
+                            (p->Vertices[u]->HiresPosition[0] == q->Vertices[v]->HiresPosition[0] &&
+                             p->Vertices[u]->HiresPosition[1] == q->Vertices[v]->HiresPosition[1]))
+                            return true;
+                return false;
+            };
             for (int side = 1; side <= 2; side++)
             {
                 if (!(b.side & side)) continue;
                 // The strip between the polygon's end and the view's edge, over its rows.
-                const s32 sx0 = side == 1 ? 0 : b.x1, sx1 = side == 1 ? b.x0 : full;
+                const s32 sx0 = side == 1 ? 0 : b.x1 < full ? b.x1 : std::min(b.tr, b.br),
+                          sx1 = side == 1 ? (b.x0 > 0 ? b.x0 : std::max(b.tl, b.bl)) : full;
                 s32 blocker = -1;
                 for (u32 j = 0; j < count && blocker < 0; j++)
                 {
                     const Box& o = boxes[j];
                     if (j == i || o.x1 < o.x0 || (o.side & side)) continue;
-                    if (list[j]->Translucent && (side == 1 ? o.x0 <= 0 : o.x1 >= full)) continue;
+                    // (A neighbour sharing a corner always holds it back, even a see-through one: the
+                    // haze at Aspertia's lookout is a dome of panels sharing their corners, whose
+                    // column at the view's left edge would otherwise have been folded up by the
+                    // next column in being continued over it.)
+                    const bool shares = sharesCorner(j);
+                    if (!shares && list[j]->Translucent && (side == 1 ? o.x0 <= 0 : o.x1 >= full)) continue;
+                    if (farBox && !shares && o.x1 - o.x0 < full / 10) continue;
                     // (Nor anything wholly nearer, by more than a twentieth: it stays in front of
                     // what is continued behind it; the trees before a far line of trees at Aspertia's
                     // lookout.)
@@ -952,7 +1043,7 @@ struct WideAccess
                     // which it covers, as it would on the DS: the land beside the lookout that
                     // Black 2 draws once it loads more of its map, frontend/bw2map.h.)
                     if (farBox && b.y0 <= 0 && o.y0 > 0) continue;
-                    if (distant && o.w0 > b.w1) continue;
+                    if ((distant || layer) && o.w0 > b.w1) continue;
 
                     // (Touching counts: a neighbour sharing the corner to be moved would be bent.
                     // One beside only a third of its rows or less does not: the sea below the
@@ -967,7 +1058,7 @@ struct WideAccess
                     fprintf(stderr, "[extend]   beside it: polygon %d (x %d-%d, y %d-%d, w %d-%d)\n", blocker, boxes[blocker].x0, boxes[blocker].x1,
                         boxes[blocker].y0, boxes[blocker].y1, boxes[blocker].w0, boxes[blocker].w1);
                 if (blocker >= 0) continue;
-                Continue(list[i], side, (b.x0 + b.x1) / 2, side == 1 ? dsLeft : dsRight, side == 1 ? 0 : full);
+                Continue(list[i], side, (b.x0 + b.x1) / 2, side == 1 ? dsLeft : dsRight, side == 1 ? 0 : full, layer);
             }
         }
     }
@@ -982,7 +1073,7 @@ struct WideAccess
     // many times over), a texture that does not repeat and would be continued past its end
     // (its last column drawn over and over, a band of one colour: the clouds by the pier), or
     // one that ends exactly at the corner (below).
-    static void Continue(Polygon* poly, int side, s32 nearX, s32 limit, s32 edge)
+    static void Continue(Polygon* poly, int side, s32 nearX, s32 limit, s32 edge, bool layer)
     {
         const u32 n = poly->NumVertices;
         struct Corner { s32 x, y, z; float invW, s, t, r, g, b; s32 rs, rt; };
@@ -1038,8 +1129,13 @@ struct WideAccess
                 }
             }
             const float s = at(in.s, o.s) / invW, tt = at(in.t, o.t) / invW;
-            // (Half a texel of slack for rounding.)
-            if (textured && ((!(tp & (1 << 16)) && (s < -8 || s > sMax + 8)) || (!(tp & (1 << 17)) && (tt < -8 || tt > tMax + 8))))
+            // (Half a texel of slack for rounding. Only past where the corner already was: a
+            // texture that the polygon itself already shows past its end, its edge row drawn on,
+            // goes on as it was, the haze at Aspertia's lookout fading out in its first row.)
+            auto past = [](float to, float from, float end) {
+                return (to < -8 && to < from - 8) || (to > end + 8 && to > from + 8);
+            };
+            if (textured && ((!(tp & (1 << 16)) && past(s, (float)o.rs, sMax)) || (!(tp & (1 << 17)) && past(tt, (float)o.rt, tMax))))
             {
                 carry = false;
                 break;
@@ -1067,7 +1163,15 @@ struct WideAccess
                 x1 = std::max(x1, c[v].x);
             }
             const s32 added = side == 1 ? x0 - edge : edge - x1;
-            if ((s64)added * (carry ? 2 : 5) > (s64)(x1 - x0)) return;
+            static const bool logC = getenv("SSR_WIDE_EXTEND_LOG") != nullptr;
+            if (logC)
+            {
+                fprintf(stderr, "[extend]   corners:");
+                for (u32 v = 0; v < n; v++) fprintf(stderr, " (%d,%d st %d,%d)", c[v].x, c[v].y, c[v].rs, c[v].rt);
+                fprintf(stderr, " carry %d added %d width %d%s\n", carry ? 1 : 0, added, x1 - x0,
+                    (s64)added * (carry ? (layer ? 1 : 2) : 5) > (s64)(x1 - x0) ? " TOO FAR: left" : "");
+            }
+            if ((s64)added * (carry ? (layer ? 1 : 2) : 5) > (s64)(x1 - x0)) return;
         }
         for (u32 v = 0; v < n; v++)
         {

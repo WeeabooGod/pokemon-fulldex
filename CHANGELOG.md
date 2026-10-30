@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+- **Black 2: the sky from Aspertia City's lookout** reaches both edges of the wide view: the haze
+  over the sky and mountains no longer stops short on the right (a darker block in the top right
+  corner, and the mountains beyond it in other colours), and the sky's left panel no longer leaves
+  a paler wedge in the top left corner.
 - **New: iPhone and iPad.** A sideloaded app (`pokemon-ds-wide-ios.ipa`, iOS 14 or newer): the
   same game list and games as on Android, with the ROMs, saves and settings in the Files app
   (On My iPhone > Pokemon DS Widescreen).
