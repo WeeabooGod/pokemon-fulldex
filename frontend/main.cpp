@@ -3926,11 +3926,11 @@ int main(int argc, char** argv)
         M_RESUME, M_LAYOUT, M_LARGE, M_FPS60, M_FULLSCREEN, M_SMOOTH, M_WIDE, M_WIDEMAP, M_BATTLEBUTTONS,
         M_WIDELINES, M_AUTODETAIL, M_WIDEGPU, M_GPU3D, M_SHOWFPS, M_BUTTONS, M_PADTOUCH, M_EMULATION,
         M_CONTROLS, M_STARTBTN, M_FAST, M_FFLOWRES, M_SAVESTATE, M_LOADSTATE, M_RESET, M_QUIT,
-        M_DISPLAY, M_GRAPHICS, M_CONTROLMENU, M_BACK, M_CHEATS, M_NOTHING,
+        M_DISPLAY, M_SOUND, M_GRAPHICS, M_CONTROLMENU, M_BACK, M_CHEATS, M_NOTHING,
         M_VOLUME, M_RA, M_RA_ON, M_RA_ACCOUNT, M_RA_GAME, M_RA_LOGIN, M_RA_TYPED, M_RA_CANCEL, M_BOTHVER,
         M_CHEAT0 = 1000 // (M_CHEAT0 + i: cheat i, CHEATS)
     };
-    enum { PAGE_MAIN, PAGE_KEYS, PAGE_DISPLAY, PAGE_GRAPHICS, PAGE_CONTROLS, PAGE_CHEATS, PAGE_RA };
+    enum { PAGE_MAIN, PAGE_KEYS, PAGE_DISPLAY, PAGE_GRAPHICS, PAGE_CONTROLS, PAGE_CHEATS, PAGE_RA, PAGE_SOUND };
     // RETROACHIEVEMENTS' LOG IN: the user name typed (raTyping 1), then the password (2), on the
     // keyboard or a phone's on-screen one (SDL's text input). The password goes to the server once
     // and is then forgotten.
@@ -4001,9 +4001,8 @@ int main(int argc, char** argv)
             add(M_SAVESTATE, "SAVE STATE", "");
             add(M_LOADSTATE, "LOAD STATE", "");
             add(M_FAST, "FAST FORWARD", onOff(fastLock));
-            add(M_VOLUME, "VOLUME", cfg.volume == 0 ? std::string("OFF") : std::to_string(cfg.volume) + "%");
-            menu.items.back().slider = cfg.volume / 10;
             add(M_DISPLAY, "DISPLAY", "");
+            add(M_SOUND, "SOUND", "");
             add(M_GRAPHICS, "GRAPHICS", "");
             add(M_CONTROLMENU, "CONTROLS", "");
             add(M_CHEATS, "CHEATS", cheats.On() ? std::to_string(cheats.On()) + " ON" : "");
@@ -4029,6 +4028,12 @@ int main(int argc, char** argv)
             add(M_BATTLEBUTTONS, "BATTLE BUTTONS",
                 !funcWatchOn || pt.on ? "-" : cfg.battleButtons == 2 ? "PANEL" : cfg.battleButtons == 0 || !bw1.on ? "CORNER" : "STRIP");
             add(M_SHOWFPS, "FPS COUNTER", onOff(cfg.showFps));
+            add(M_BACK, "BACK", "");
+        }
+        else if (menuPage == PAGE_SOUND)
+        {
+            add(M_VOLUME, "VOLUME", cfg.volume == 0 ? std::string("OFF") : std::to_string(cfg.volume) + "%");
+            menu.items.back().slider = cfg.volume / 10;
             add(M_BACK, "BACK", "");
         }
         else if (menuPage == PAGE_GRAPHICS)
@@ -5242,7 +5247,7 @@ int main(int argc, char** argv)
             int backTo = -1;
             if (nav.back && menuPage != PAGE_MAIN)
             {
-                backTo = menuPage == PAGE_DISPLAY ? M_DISPLAY : menuPage == PAGE_GRAPHICS ? M_GRAPHICS
+                backTo = menuPage == PAGE_DISPLAY ? M_DISPLAY : menuPage == PAGE_SOUND ? M_SOUND : menuPage == PAGE_GRAPHICS ? M_GRAPHICS
                        : menuPage == PAGE_CHEATS ? M_CHEATS : menuPage == PAGE_RA ? M_RA : M_CONTROLMENU;
                 nav = MenuInput();
             }
@@ -5304,6 +5309,10 @@ int main(int argc, char** argv)
                 goPage(PAGE_DISPLAY, -1);
                 hit = -1;
                 break;
+            case M_SOUND:
+                goPage(PAGE_SOUND, -1);
+                hit = -1;
+                break;
             case M_GRAPHICS:
                 goPage(PAGE_GRAPHICS, -1);
                 hit = -1;
@@ -5314,7 +5323,7 @@ int main(int argc, char** argv)
                 break;
             case M_BACK:
                 if (backTo < 0)
-                    backTo = menuPage == PAGE_DISPLAY ? M_DISPLAY : menuPage == PAGE_GRAPHICS ? M_GRAPHICS
+                    backTo = menuPage == PAGE_DISPLAY ? M_DISPLAY : menuPage == PAGE_SOUND ? M_SOUND : menuPage == PAGE_GRAPHICS ? M_GRAPHICS
                            : menuPage == PAGE_CHEATS ? M_CHEATS : menuPage == PAGE_RA ? M_RA : M_CONTROLMENU;
                 goPage(PAGE_MAIN, backTo);
                 hit = -1;
@@ -6712,7 +6721,7 @@ int main(int argc, char** argv)
             std::string hint = touchPadUsed && touchPad.visible ? "TAP: CHOOSE   OUTSIDE: BACK"
                                : btn(Controls::A) + ": SELECT   " + btn(Controls::B) + ": BACK";
             const int selId = menu.selected >= 0 && menu.selected < (int)menuIds.size() ? menuIds[menu.selected] : -1;
-            static const char* pageTitle[] = { "", "KEYS AND BUTTONS", "DISPLAY", "GRAPHICS", "CONTROLS", "CHEATS", "RETROACHIEVEMENTS" };
+            static const char* pageTitle[] = { "", "KEYS AND BUTTONS", "DISPLAY", "GRAPHICS", "CONTROLS", "CHEATS", "RETROACHIEVEMENTS", "SOUND" };
             if (menuPage == PAGE_KEYS)
             {
                 if (!(touchPadUsed && touchPad.visible)) hint = btn(Controls::A) + ": CHANGE   " + btn(Controls::B) + ": BACK";

@@ -2,8 +2,9 @@
 
 ## Unreleased
 
-- **VOLUME**, for the sound and music: OFF, then 10% to 100%, in the pause menu as a slider (left
-  and right change it, or tap the bar on a phone) and on the game list's settings page (DISPLAY AND SOUND).
+- **SOUND, with VOLUME**, a page of its own in the pause menu and on the game list's settings
+  page: a slider from OFF, then 10% to 100% (left and right change it, or tap the bar on a
+  phone).
 - **RetroAchievements on every platform:** RETROACHIEVEMENTS in the pause menu (Windows, Linux,
   Mac, Android, iPhone and iPad, Switch). Turn it on, LOG IN with your RetroAchievements account,
   and unlocks pop up as you play. Casual mode: save states, fast forward and cheats still work

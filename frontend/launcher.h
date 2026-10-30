@@ -781,27 +781,29 @@ inline const std::vector<SettingsGroup>& SettingsGroups()
 {
     static const std::vector<SettingsGroup> g = {
         // (What each holds is listed under it: its options' names, ShowGroups.)
-        { "!group0", "DISPLAY AND SOUND", "" },
-        { "!group1", "GRAPHICS", "" },
-        { "!group2", "CONTROLS", "" },
-        { "!group3", "SHORTCUTS", "" },
-        { "!group4", "HELP", "" },
+        { "!group0", "DISPLAY", "" },
+        { "!group1", "SOUND", "" },
+        { "!group2", "GRAPHICS", "" },
+        { "!group3", "CONTROLS", "" },
+        { "!group4", "SHORTCUTS", "" },
+        { "!group5", "HELP", "" },
     };
     return g;
 }
 // Which group an option is in (SettingsGroups).
 inline int GroupOf(const Setting& s)
 {
-    if (!s.key) return !strcmp(s.name, "KEYS AND BUTTONS") ? 2 : 4;
-    static const char* display[] = { "view", "large_screen", "fullscreen", "smooth", "battle_buttons", "show_fps", "volume" };
+    if (!s.key) return !strcmp(s.name, "KEYS AND BUTTONS") ? 3 : 5;
+    static const char* display[] = { "view", "large_screen", "fullscreen", "smooth", "battle_buttons", "show_fps" };
     static const char* controls[] = { "start_button", "buttons", "pad_touch" };
     for (const char* k : display)
         if (!strcmp(s.key, k)) return 0;
+    if (!strcmp(s.key, "volume")) return 1;
     for (const char* k : controls)
-        if (!strcmp(s.key, k)) return 2;
-    if (!strcmp(s.key, "!keys")) return 2;
-    if (s.key[0] == '!') return 3; // (DESKTOP SHORTCUTS, HOME MENU ICONS)
-    return 1;
+        if (!strcmp(s.key, k)) return 3;
+    if (!strcmp(s.key, "!keys")) return 3;
+    if (s.key[0] == '!') return 4; // (DESKTOP SHORTCUTS, HOME MENU ICONS)
+    return 2;
 }
 
 struct SettingsPage
