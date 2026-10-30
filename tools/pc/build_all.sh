@@ -120,6 +120,8 @@ COMMON+=(-DSSR_PC_ART="$ART")
 GBA="${SSR_GBA_DIR:-}"
 [ -n "$GBA" ] && { [ -f "$GBA/frontend/embed.h" ] || fail "SSR_GBA_DIR: not Pokemon GBA Widescreen: $GBA"; GBA="$(realpath "$GBA")"; say "GBA games too: $GBA"; }
 COMMON+=(-DSSR_GBA_DIR="$GBA")
+GBA_WORK="${GBAW_WORK:-$HOME/pokemon-gba-wide}"
+[ -z "$GBA" ] || [ -f "$GBA_WORK/mgba/LICENSE" ] || fail "no mGBA in $GBA_WORK (Pokemon GBA Widescreen's setup.sh makes it; GBAW_WORK if elsewhere)"
 mkdir -p build-pc-dist
 
 # The folder the player unpacks: the program, its function tables, an empty roms folder and the
@@ -129,8 +131,15 @@ stage() {
     rm -rf "$dir"
     mkdir -p "$dir/roms" "$dir/data"
     cp -r "$DATA/funcs" "$dir/data/funcs"
-    cp tools/pc/README.txt "$dir/README.txt"
     cp LICENSE "$dir/LICENSE.txt"
+    if [ -n "$GBA" ]; then
+        # (With the GBA games: their part of the notes before SOURCE AND LICENCE, and mGBA's licence.)
+        awk -v gba=tools/pc/README-GBA.txt '/^SOURCE AND LICENCE$/ { while ((getline l < gba) > 0) print l } { print }' \
+            tools/pc/README.txt > "$dir/README.txt"
+        cp "$GBA_WORK/mgba/LICENSE" "$dir/LICENSE-mGBA.txt"
+    else
+        cp tools/pc/README.txt "$dir/README.txt"
+    fi
 }
 
 # Only these files may be in a download: the program, SDL2 and its licence, the function tables,
@@ -138,7 +147,7 @@ stage() {
 check_contents() { # list of paths, one per line, relative to the download's top folder
     python3 -c "
 import re, sys
-ok = re.compile(r'^pokemon-ds-wide/(pokemon-ds-wide|Pokemon DS Launcher\.exe|SDL2\.dll|libSDL2-2\.0\.so\.0|LICENSE\.txt|LICENSE-SDL2\.txt|README\.txt|roms/|data/|data/funcs/|data/funcs/(IREO|IRDO|IRBO|IRAO|CPUE)\.txt)?$')
+ok = re.compile(r'^pokemon-ds-wide/(pokemon-ds-wide|Pokemon DS Launcher\.exe|SDL2\.dll|libSDL2-2\.0\.so\.0|LICENSE\.txt|LICENSE-SDL2\.txt|LICENSE-mGBA\.txt|README\.txt|roms/|data/|data/funcs/|data/funcs/(IREO|IRDO|IRBO|IRAO|CPUE)\.txt)?$')
 bad = [l for l in sys.stdin.read().splitlines() if l and not ok.match(l)]
 if bad: sys.exit('unexpected files in the download: %s' % bad)
 "
@@ -270,7 +279,7 @@ ls -l build-pc-dist/*.zip build-pc-dist/*.tar.gz build-pc-dist/*.AppImage* 2>/de
 cat <<EOF
 
 Unpack the download anywhere, put your ROMs in its roms folder (any names: English Black, White,
-Black 2, White 2, SoulSilver, HeartGold and Platinum, US or Europe) and start Pokemon DS Launcher.exe
+Black 2, White 2, SoulSilver, HeartGold and Platinum, US or Europe$([ -n "$GBA" ] && printf '; and the GBA games, Emerald,\nFireRed, LeafGreen and Ultra Violet')) and start Pokemon DS Launcher.exe
 (Linux: pokemon-ds-wide).
 The downloads hold only the program: nothing of the games.
 EOF
