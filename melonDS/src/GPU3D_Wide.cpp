@@ -723,13 +723,13 @@ struct WideAccess
             {
                 Replay(*Jobs[1].Engine, true, XNum, XDen, VtxInterp.data(), PolyInterp.data(), ListInterp.data(), NumInterp, matched,
                     Cur, Prev, MaxPolygons, MaxVertices, &Shared);
-                ExtendToEdges(ListInterp.data(), NumInterp, View);
+                ExtendToEdges(ListInterp.data(), NumInterp, View, true);
             }
             else
             {
                 Replay(*Jobs[2].Engine, false, XNum, XDen, VtxReal.data(), PolyReal.data(), ListReal.data(), NumReal, matched,
                     Cur, Prev, MaxPolygons, MaxVertices);
-                ExtendToEdges(ListReal.data(), NumReal, View);
+                ExtendToEdges(ListReal.data(), NumReal, View, false);
             }
         }
         // Waits for the in-between frame's pairs (0), also its lists (1), or everything (2).
@@ -864,13 +864,13 @@ struct WideAccess
         u32 matched;
         Replay(g, false, xnum, xden, VtxReal.data(), PolyReal.data(), ListReal.data(), NumReal, matched, g.RawCurrent,
             g.RawPrevious, MaxPolygons, MaxVertices);
-        ExtendToEdges(ListReal.data(), NumReal, view);
+        ExtendToEdges(ListReal.data(), NumReal, view, false);
         NumInterp = 0;
         if (interpolate)
         {
             Replay(g, true, xnum, xden, VtxInterp.data(), PolyInterp.data(), ListInterp.data(), NumInterp, matched,
                 g.RawCurrent, g.RawPrevious, MaxPolygons, MaxVertices);
-            ExtendToEdges(ListInterp.data(), NumInterp, view);
+            ExtendToEdges(ListInterp.data(), NumInterp, view, true);
         }
     }
 
@@ -928,9 +928,16 @@ struct WideAccess
         return poly->Translucent || fmt == 1 || fmt == 6 || (fmt >= 2 && fmt <= 4 && (poly->TexParam & (1 << 29)));
     }
 
-    static void ExtendToEdges(Polygon** list, u32 count, float view)
+    static void ExtendToEdges(Polygon** list, u32 count, float view, bool interp)
     {
         static const bool off = getenv("SSR_WIDE_NO_EXTEND") != nullptr; // (to compare)
+        // (To compare too: SSR_WIDE_EXTEND_ONLY=far continues only the layers of the distance,
+        // =near only the rest. SSR_WIDE_EXTEND_TRACE=1 writes each frame's decisions, one line a
+        // polygon, to find one that is continued in some frames and not others: a flicker.)
+        static const char only = getenv("SSR_WIDE_EXTEND_ONLY") ? getenv("SSR_WIDE_EXTEND_ONLY")[0] : 0;
+        static const bool trace = getenv("SSR_WIDE_EXTEND_TRACE") != nullptr;
+        static u32 traceCall = 0;
+        if (trace) traceCall++;
         static const bool log = getenv("SSR_WIDE_EXTEND_LOG") != nullptr; // (development aid)
         if (off || !Wide.ExtendEdges) return;
         constexpr s32 full = 256 * 16;      // the view's width in HiresPosition's units
@@ -983,6 +990,7 @@ struct WideAccess
             // behind them stopped in a hard edge while the haze and clouds in front, ending
             // nearer the edge, were continued over nothing: a darker block in the corner.
             const bool backdrop = IsLayer(list[i], b.w0, b.w1, farW);
+            if ((only == 'f' && !backdrop) || (only == 'n' && backdrop)) continue;
             const s32 reach = backdrop ? full / 2 : gap;
             // (A layer whose end is slanted, reaching the view's edge at its top and ending short of
             // it at its bottom, or the other way round, counts as ending at its shorter corner:
@@ -1080,8 +1088,12 @@ struct WideAccess
                 if (log && blocker >= 0)
                     fprintf(stderr, "[extend]   beside it: polygon %d (x %d-%d, y %d-%d, w %d-%d)\n", blocker, boxes[blocker].x0, boxes[blocker].x1,
                         boxes[blocker].y0, boxes[blocker].y1, boxes[blocker].w0, boxes[blocker].w1);
-                if (blocker >= 0) continue;
-                Continue(list[i], side, (b.x0 + b.x1) / 2, side == 1 ? dsLeft : dsRight, side == 1 ? 0 : full, layer);
+                const char* result = blocker >= 0 ? "blocked" :
+                    Continue(list[i], side, (b.x0 + b.x1) / 2, side == 1 ? dsLeft : dsRight, side == 1 ? 0 : full, layer);
+                if (trace)
+                    fprintf(stderr, "[xt] %u %c %c %c tex %08x n %u x %d-%d y %d-%d w %d-%d far %d %s%s%d\n", traceCall, interp ? 'i' : 'r',
+                        side == 1 ? 'L' : 'R', layer ? 'F' : 'N', list[i]->TexParam, list[i]->NumVertices, b.x0, b.x1, b.y0, b.y1,
+                        b.w0, b.w1, farW, result, blocker >= 0 ? " by " : "", blocker >= 0 ? blocker : (s32)i);
             }
         }
     }
@@ -1096,7 +1108,7 @@ struct WideAccess
     // many times over), a texture that does not repeat and would be continued past its end
     // (its last column drawn over and over, a band of one colour: the clouds by the pier), or
     // one that ends exactly at the corner (below).
-    static void Continue(Polygon* poly, int side, s32 nearX, s32 limit, s32 edge, bool layer)
+    static const char* Continue(Polygon* poly, int side, s32 nearX, s32 limit, s32 edge, bool layer)
     {
         const u32 n = poly->NumVertices;
         // A layer of the distance whose end the DS screen shows part of really ends there, the
@@ -1118,7 +1130,7 @@ struct WideAccess
         for (u32 v = 0; v < n && layer; v++)
         {
             const u32 w = (v + 1) % n;
-            if ((beyond(v) && onScreen(w)) || (onScreen(v) && beyond(w))) return;
+            if ((beyond(v) && onScreen(w)) || (onScreen(v) && beyond(w))) return "ends-on-screen";
         }
         struct Corner { s32 x, y, z; float invW, s, t, r, g, b; s32 rs, rt; };
         Corner c[10];
@@ -1225,8 +1237,8 @@ struct WideAccess
                     longest = std::max(longest, std::hypot((double)(c[u].x - a.x), (double)(c[u].y - a.y)));
             }
             const double thick = longest > 0 ? std::abs(area2) / longest : 0;
-            if (steep && thick < 256 * 16 / 12.0) return;
-            if (!layer && thick < 256 * 16 / 24.0) return;
+            if (steep && thick < 256 * 16 / 12.0) return "thin-steep";
+            if (!layer && thick < 256 * 16 / 24.0) return "thin";
         }
         {
             s32 x0 = INT32_MAX, x1 = INT32_MIN;
@@ -1244,7 +1256,7 @@ struct WideAccess
                 fprintf(stderr, " carry %d added %d width %d%s\n", carry ? 1 : 0, added, x1 - x0,
                     (s64)added * (carry ? (layer && !steep ? 1 : 2) : 5) > (s64)(x1 - x0) ? " TOO FAR: left" : "");
             }
-            if ((s64)added * (carry ? (layer && !steep ? 1 : 2) : 5) > (s64)(x1 - x0)) return;
+            if ((s64)added * (carry ? (layer && !steep ? 1 : 2) : 5) > (s64)(x1 - x0)) return "too-far";
         }
         for (u32 v = 0; v < n; v++)
         {
@@ -1262,6 +1274,7 @@ struct WideAccess
             p->FinalColor[1] = m[v].g;
             p->FinalColor[2] = m[v].b;
         }
+        return carry ? (steep ? "carried-steep" : "carried") : "stretched";
     }
 
     // Called where the 3D renderer draws a frame. The image drawn here belongs to the
