@@ -915,6 +915,14 @@ struct WideAccess
     // neighbours there, a shadow on the street, a floor, changed it for nothing. Others ending in
     // the same strip, a sky's other layers, do not count as neighbours, nor does a see-through
     // layer that reaches the edge itself: the haze over a sky, which the sky behind should fill.)
+    // A polygon whose picture has see-through parts: a texture with a transparent colour 0 or
+    // alpha (A3I5, A5I3), or a translucent polygon.
+    static bool SeeThrough(const Polygon* poly)
+    {
+        const u32 fmt = (poly->TexParam >> 26) & 7;
+        return poly->Translucent || fmt == 1 || fmt == 6 || (fmt >= 2 && fmt <= 4 && (poly->TexParam & (1 << 29)));
+    }
+
     static void ExtendToEdges(Polygon** list, u32 count, float view)
     {
         static const bool off = getenv("SSR_WIDE_NO_EXTEND") != nullptr; // (to compare)
@@ -1000,20 +1008,30 @@ struct WideAccess
             const bool layer = IsLayer(list[i], b.w1, farW);
             const bool farBox = (s64)b.w1 * 10 >= (s64)farW * 9, distant = (s64)b.w1 * 10 >= (s64)farW * 6;
             // (A layer of the backdrop is not held back by anything small beside it, less than a
-            // tenth of the view wide that shares none of its corners: something standing in
-            // front of the distance, a far tree on the horizon, which the depth keeps in front of
-            // what is continued. At Aspertia's lookout the trees on the hill to the east held back
-            // the mountains, which then ended in a hard edge. Anything larger still does: the
-            // wall beside the back wall of Route 19's gate.)
+            // tenth of the view wide, or anything with see-through parts (a picture with a
+            // transparent colour or alpha), that shares none of its corners: something standing
+            // in front of the distance, a far tree on the horizon, which the depth keeps in front
+            // of what is continued. At Aspertia's lookout the trees on the hill to the east held
+            // back the mountains, which then ended in a hard edge; those trees are about a tenth
+            // of the view wide, so as the camera rose to the view they held the sky back in some
+            // frames and not others, a flicker. Anything solid and larger still does: the wall
+            // beside the back wall of Route 19's gate.)
             auto sharesCorner = [&](u32 j) {
                 const Polygon* p = list[i];
                 const Polygon* q = list[j];
                 for (u32 u = 0; u < p->NumVertices; u++)
                     for (u32 v = 0; v < q->NumVertices; v++)
-                        if (p->Vertices[u] == q->Vertices[v] ||
-                            (p->Vertices[u]->HiresPosition[0] == q->Vertices[v]->HiresPosition[0] &&
-                             p->Vertices[u]->HiresPosition[1] == q->Vertices[v]->HiresPosition[1]))
-                            return true;
+                    {
+                        if (p->Vertices[u] == q->Vertices[v]) return true;
+                        // (The same place counts too, the game having made separate corners
+                        // for its neighbours, but not on the view's edges, where the clipping
+                        // makes corners of everything that crosses them: the clouds at the top
+                        // left corner of the lookout's view, "sharing" one with the sky, held
+                        // it back in one frame in two, a flicker.)
+                        const s32* a = p->Vertices[u]->HiresPosition;
+                        const s32* c = q->Vertices[v]->HiresPosition;
+                        if (a[0] == c[0] && a[1] == c[1] && a[0] > 0 && a[0] < full && a[1] > 0 && a[1] < 192 * 16) return true;
+                    }
                 return false;
             };
             for (int side = 1; side <= 2; side++)
@@ -1033,7 +1051,7 @@ struct WideAccess
                     // next column in being continued over it.)
                     const bool shares = sharesCorner(j);
                     if (!shares && list[j]->Translucent && (side == 1 ? o.x0 <= 0 : o.x1 >= full)) continue;
-                    if (farBox && !shares && o.x1 - o.x0 < full / 10) continue;
+                    if (farBox && !shares && (o.x1 - o.x0 < full / 10 || SeeThrough(list[j]))) continue;
                     // (Nor anything wholly nearer, by more than a twentieth: it stays in front of
                     // what is continued behind it; the trees before a far line of trees at Aspertia's
                     // lookout.)

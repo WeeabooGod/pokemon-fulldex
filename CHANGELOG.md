@@ -14,6 +14,9 @@
   over the sky and mountains no longer stops short on the right (a darker block in the top right
   corner, and the mountains beyond it in other colours), and the sky's left panel no longer leaves
   a paler wedge in the top left corner.
+- **Black 2: no flicker at the edges as the camera rises at Aspertia City's lookout.** The sky,
+  hills and mountains were continued to the wide view's edges in some frames and not others while
+  the view tilted up.
 - **Widescreen: things no longer vanish while still on screen.** Black 2's rocks and lamp posts at
   the bottom of the stairs up to Aspertia City's lookout disappeared a few pixels before they had
   scrolled out of the picture, and appeared late; the game now draws what is near the picture's
