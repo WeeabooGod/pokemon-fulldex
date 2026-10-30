@@ -2,6 +2,9 @@
 
 ## Unreleased
 
+- **SoulSilver and HeartGold: the European English copies** are listed as working: their code is
+  the US versions' (only a picture and the version number differ), and they play the same, with
+  the one-screen layouts and the widescreen world.
 - **Black 2: the sky from Aspertia City's lookout** reaches both edges of the wide view: the haze
   over the sky and mountains no longer stops short on the right (a darker block in the top right
   corner, and the mountains beyond it in other colours), and the sky's left panel no longer leaves

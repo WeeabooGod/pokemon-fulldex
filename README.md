@@ -391,7 +391,8 @@ Please tell us how it runs on yours, with your model (see [Reporting a bug](#rep
 |---|---|
 | ![HeartGold: Totodile against a wild Pidgey on Route 29, with FIGHT, BAG, RUN, POKÉMON and the party beside the battle](docs/screenshots/heartgold-totodile-battle.jpg) | ![SoulSilver: Lugia following you along Route 7](docs/screenshots/soulsilver-lugia-following.jpg) |
 
-- **ROMs:** the English US versions. Other versions start, but without the
+- **ROMs:** the English versions, US or Europe (the European English copies
+  are the same game as the US ones). Other languages start, but without the
   one-screen layouts.
 - **Saves:** `soulsilver.sav` and `heartgold.sav` (the same format, so either
   game reads the other's).
@@ -442,8 +443,8 @@ OLED in handheld mode; a PC has room to spare, and draws the same picture up to
 
 ## Known limits
 
-- Black, White, Black 2 and White 2: English (US/Europe) versions only. SoulSilver,
-  HeartGold and Platinum: US versions only.
+- Black, White, Black 2, White 2, SoulSilver and HeartGold: English (US or
+  Europe) versions only. Platinum: the US version only.
 - Platinum: the Pokétch (the watch on the touch screen) isn't shown during
   normal play; its apps are one press of the screen-swap button away.
 - SoulSilver and HeartGold: at map borders (Route 29 and New Bark Town, Celadon
@@ -481,8 +482,8 @@ version and the **`game.log`** file, which says what the program did:
 
 A screenshot or short video helps too. Please never attach your ROM. A white or
 black screen when a game starts usually means the ROM isn't one the program
-plays: an English copy of Black, White, Black 2 or White 2 (US or Europe), or
-the English US copy of SoulSilver, HeartGold or Platinum, unchanged (no
+plays: an English copy of Black, White, Black 2, White 2, SoulSilver or
+HeartGold (US or Europe), or the English US copy of Platinum, unchanged (no
 patches, translations, randomizers or trimming).
 
 ## Support
