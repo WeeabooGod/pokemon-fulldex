@@ -314,8 +314,8 @@ the next one falls back by itself (hold L while starting for the interpreter).
    folder. Tap a game twice (or press A on a controller) to play.
 
 **Controls:** on-screen buttons (D-pad, A, B, X, Y, L, R, START, SELECT and
-MENU at the top) while you play by touch; tap the picture itself to touch the
-DS's touch screen. A controller (Bluetooth or USB: Xbox, PlayStation, Backbone,
+MENU at the top) while you play by touch; hold **>>** beside R to fast forward; tap the
+picture itself to touch the DS's touch screen. A controller (Bluetooth or USB: Xbox, PlayStation, Backbone,
 Razer Kishi and others) plays as a DS and hides the on-screen buttons; its
 **Start** opens the pause menu and its right trigger fast forwards. **CONTROLS > KEYS
 AND BUTTONS** in the pause menu changes which button does what.

@@ -13,7 +13,9 @@
   `roms` works too, with the saves in its own `saves` folder (as Pokémon GBA Widescreen keeps them
   on a phone, so a game carries on). Other GBA games play
   too, without widescreen. QUIT GAME in a GBA game's pause menu comes back to the list.
-
+- **Android: a fast forward button on the touch controls.** Hold the >> button beside R at the top
+  of the screen (up to 4x). R itself stays the DS's R button; with a controller, fast forward is
+  still its right trigger.
 - **Windows: the taskbar shows the program's own icon.** A desktop shortcut to one game that was
   pinned (Platinum's, say) took over every window of the program, the game list's included, with
   that game's picture; the program and each game's shortcut now have their own place on the

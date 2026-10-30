@@ -4946,6 +4946,7 @@ int main(int argc, char** argv)
                 for (int i = 0; i < PAD_COUNT; i++) ps.btn[i] |= held[i];
                 if (touchMenuHeld && !prevTouchMenu) toggleMenu = true;
                 prevTouchMenu = touchMenuHeld;
+                if (touchPad.visible && touchPad.FastHeld()) kbFast = true; // (the >> button)
             }
 
             const Uint8* kb = SDL_GetKeyboardState(nullptr);
