@@ -376,6 +376,9 @@ int PickGame(Folders& fo, std::vector<Launcher::Game>& games, int selected, bool
     // when it has none.
     static int lastTab = 0;
     int tab = lastTab, scroll = 0, result = -1;
+    // false while the list is where a finger (or the mouse, held) dragged it, rather than where
+    // the chosen game is; a key, button or tap that chooses a game makes it follow again.
+    bool follow = true;
     std::string note;
     auto view = [&]() { return Launcher::MakeView(canvas, games, tab); };
     // Tests, without anyone there: SSR_LIST_TAB=n opens on tab n; SSR_LIST_PICK=a game code chooses
@@ -401,6 +404,7 @@ int PickGame(Folders& fo, std::vector<Launcher::Game>& games, int selected, bool
         tab = (t + Launcher::TABS) % Launcher::TABS;
         fprintf(stderr, "[launcher] tab %s (%s)\n", Launcher::TabName(tab), why);
         scroll = 0;
+        follow = true;
         const Launcher::View v = view();
         if (v.SpotOf(selected) < 0) selected = Launcher::FirstIn(v);
         note.clear();
@@ -589,6 +593,7 @@ int PickGame(Folders& fo, std::vector<Launcher::Game>& games, int selected, bool
         }
         // Through the tab's games, across its headings (Launcher::Step); up from the top row: the
         // title band's SETTINGS.
+        follow = true;
         const Launcher::View v = view();
         const int to = v.spots.empty() ? -1 : Launcher::Step(v, selected, dir);
         if (to < 0)
@@ -837,8 +842,35 @@ int PickGame(Folders& fo, std::vector<Launcher::Game>& games, int selected, bool
                     if (t >= 0)
                     {
                         if (t != tab) setTab(t, "a tap");
+                        pressed = false;
                         break;
                     }
+                }
+                // A finger (or the mouse, held) dragged up or down scrolls the list; it chooses
+                // nothing and plays nothing.
+                const bool leftDown = e.type == SDL_MOUSEBUTTONDOWN && e.button.button == SDL_BUTTON_LEFT;
+                if (leftDown && my >= 22 * s)
+                {
+                    downY = my;
+                    downScroll = scroll;
+                    pressed = true;
+                    dragging = false;
+                }
+                else if (e.type == SDL_MOUSEMOTION && pressed)
+                {
+                    if (!dragging && std::abs(my - downY) > 8 * s) dragging = true;
+                    if (dragging)
+                    {
+                        follow = false;
+                        tapPlay = -1;
+                        scroll = std::max(0, downScroll - (my - downY));
+                        break;
+                    }
+                }
+                if (e.type == SDL_MOUSEBUTTONUP && dragging)
+                {
+                    dragging = pressed = false;
+                    break;
                 }
                 const int i = Launcher::TileAt(view(), scroll, mx, my);
                 if (e.type == SDL_MOUSEBUTTONUP)
@@ -868,6 +900,9 @@ int PickGame(Folders& fo, std::vector<Launcher::Game>& games, int selected, bool
                     selected = i;
                     onSettings = false;
                     note.clear();
+                    // (A tap: the list follows it, unless the finger goes on to drag. A mouse
+                    // passing over a tile leaves the list where it is.)
+                    if (e.type == SDL_MOUSEBUTTONDOWN) follow = true;
                 }
 #ifdef __ANDROID__
                 // (Asking for the ROM folder: a tap anywhere.)
@@ -1002,7 +1037,7 @@ int PickGame(Folders& fo, std::vector<Launcher::Game>& games, int selected, bool
                 keysMenu.Draw(canvas, "KEYS AND BUTTONS", kh);
             }
         }
-        else Launcher::Draw(canvas, games, tab, onSettings ? -1 : selected, scroll, note, hint, theme);
+        else Launcher::Draw(canvas, games, tab, onSettings ? -1 : selected, scroll, note, hint, theme, follow);
         {
             // The title band's buttons (for touch screens and the mouse): SETTINGS, or BACK in
             // the settings; on Android FOLDER, to choose the ROM folder again.

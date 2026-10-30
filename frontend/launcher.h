@@ -452,12 +452,13 @@ inline View MakeView(const Canvas& c, const std::vector<Game>& games, int tab)
 }
 
 // Keeps the chosen game in view (with its console's heading when it is in the first row under
-// it): scroll is how far down the content the screen is.
-inline void FollowSelection(const View& v, int selected, int& scroll)
+// it): scroll is how far down the content the screen is. follow false: only kept within the
+// content (a finger scrolling the list).
+inline void FollowSelection(const View& v, int selected, int& scroll, bool follow = true)
 {
     const Grid& g = v.g;
     const int viewH = g.bottom - g.top;
-    const int k = v.SpotOf(selected);
+    const int k = follow ? v.SpotOf(selected) : -1;
     if (k >= 0)
     {
         int top = v.spots[k].y;
@@ -531,10 +532,10 @@ inline int FirstIn(const View& v) { return v.spots.empty() ? -1 : v.spots[0].gam
 // The list, drawn over the whole canvas (1280x720 on the Switch): the title band, the tabs, then
 // the tab's games as tiles, each the game's picture (or its DS icon, enlarged) with its name and
 // whether it has a save, under each console's heading on ALL. selected: -1 for none. scroll is
-// kept so the chosen game is in view. hint: the line along the bottom (the Switch's buttons when
-// empty).
+// kept so the chosen game is in view (follow false: as it is, a finger having scrolled the list).
+// hint: the line along the bottom (the Switch's buttons when empty).
 inline void Draw(Canvas& c, const std::vector<Game>& games, int tab, int selected, int& scroll, const std::string& note,
-                 const std::string& hintText = std::string(), const Theme& th = Theme())
+                 const std::string& hintText = std::string(), const Theme& th = Theme(), bool follow = true)
 {
     const View v = MakeView(c, games, tab);
     const Grid& grid = v.g;
@@ -554,7 +555,7 @@ inline void Draw(Canvas& c, const std::vector<Game>& games, int tab, int selecte
         if (t == tab) c.Fill(x - 2 * s, grid.tabsY + grid.tabsH - s, Canvas::TextWidth(name, s) + 3 * s, s, th.frame);
     }
 
-    FollowSelection(v, selected, scroll);
+    FollowSelection(v, selected, scroll, follow);
     const int top = grid.top, bottom = grid.bottom, tile = grid.tile, labelH = grid.labelH;
     // The headings (on ALL): the console's name and a line to the right edge of the tiles.
     for (const View::Head& h : v.heads)
@@ -617,8 +618,8 @@ inline void Draw(Canvas& c, const std::vector<Game>& games, int tab, int selecte
         const int ss = std::max(1, s * 2 / 3);
         c.Text(x + (tile - Canvas::TextWidth(sub, ss)) / 2, y + tile + 12 * s, sub, ss, !g.known ? th.bad : sel ? th.subSel : th.sub);
     }
-    // More games above or below the ones shown.
-    if (scroll > 0) c.Fill(c.w / 2 - 8 * s, top - 3 * s, 16 * s, s, th.hint);
+    // More games below the ones shown. (None drawn for above: under the tabs it looked like one
+    // of their underlines, and the cut tiles at the top say it already.)
     if (scroll + (bottom - top) < v.height - grid.gap) c.Fill(c.w / 2 - 8 * s, bottom - 2 * s, 16 * s, s, th.hint);
     const std::string hint = !note.empty() ? note : !hintText.empty() ? hintText : "A: PLAY    Y: SETTINGS    L / R: TABS    +: QUIT";
     c.Text((c.w - Canvas::TextWidth(hint, s)) / 2, c.h - 12 * s, hint, s, th.hint);
