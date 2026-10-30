@@ -452,20 +452,22 @@ inline std::string ConfigValue(const std::string& cfg, const char* key)
 
 // The GBA games (Pokemon GBA Widescreen, built in) take the DS games' settings where both have
 // one: written into its gba-settings.ini in `dataDir` as a GBA game starts, the others there (its
-// WIDESCREEN shape, FAST FORWARD SPEED) left as they are. SMOOTH SCALING OFF is its SHARP, which
-// fills the screen (never WHOLE PIXELS: a border round the picture, which the DS games never
-// have); FPS COUNTER, VOLUME and, but on the Switch, CONTROLLER BUTTONS as they are.
+// WIDESCREEN shape, FAST FORWARD SPEED) left as they are. SMOOTH SCALING ON is its SMOOTH; OFF
+// keeps its SHARP or WHOLE PIXELS, whichever was chosen there (SHARP to start: it fills the screen;
+// WHOLE PIXELS, the crispest, leaves a border, which its WIDESCREEN 18:9 keeps to the top and
+// bottom at 720p). FPS COUNTER, VOLUME and, but on the Switch, CONTROLLER BUTTONS as they are.
 inline void SyncGbaSettings(const std::string& cfg, const std::string& dataDir)
 {
     std::vector<std::pair<std::string, std::string>> set;
-    set.push_back({ "scaling", ConfigValue(cfg, "smooth") == "1" ? "smooth" : "sharp" });
+    const std::string ini = dataDir + "/gba-settings.ini";
+    const std::string had = ConfigValue(ini, "scaling");
+    set.push_back({ "scaling", ConfigValue(cfg, "smooth") == "1" ? "smooth" : had == "whole" ? "whole" : "sharp" });
     set.push_back({ "show_fps", ConfigValue(cfg, "show_fps") == "1" ? "1" : "0" });
     const std::string vol = ConfigValue(cfg, "volume");
     set.push_back({ "volume", vol.empty() ? "100" : vol });
 #ifndef __SWITCH__
     set.push_back({ "buttons", ConfigValue(cfg, "buttons") == "positions" ? "positions" : "labels" });
 #endif
-    const std::string ini = dataDir + "/gba-settings.ini";
     std::vector<std::string> lines;
     if (FILE* f = fopen(ini.c_str(), "r"))
     {
