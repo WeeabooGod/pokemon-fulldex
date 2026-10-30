@@ -475,6 +475,8 @@ std::vector<Row> List()
             r.progress = a->measured_progress;
             r.points = a->points;
             r.unlocked = a->unlocked != RC_CLIENT_ACHIEVEMENT_UNLOCKED_NONE;
+            r.unlockTime = (int64_t)a->unlock_time;
+            r.rarity = a->rarity;
             (r.unlocked ? unlocked : locked).push_back(std::move(r));
         }
     rc_client_destroy_achievement_list(list);

@@ -4,7 +4,9 @@
 
 - **RetroAchievements: an ACHIEVEMENTS list** in the pause menu (RETROACHIEVEMENTS > ACHIEVEMENTS,
   once a game's set is loaded): every achievement with its points or DONE, unlocked ones first;
-  the chosen one's description, points and progress so far under the box.
+  the chosen one's description, points and progress so far under the box. A on one opens its
+  details: the whole title and description, points, when you unlocked it (or progress so far) and
+  the share of players who have it.
 - **RetroAchievements from the game list too** (PC, Android, Mac, iPhone and iPad): SETTINGS >
   RETROACHIEVEMENTS turns it on and LOGS IN (or out) before you start a game; the games use the
   same account. The pause menu's RETROACHIEVEMENTS is still there.

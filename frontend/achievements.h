@@ -67,6 +67,8 @@ struct Row
     std::string title, description, progress; // progress: "3/8" for one counted as it goes
     uint32_t points = 0;
     bool unlocked = false;
+    int64_t unlockTime = 0; // when it was unlocked (seconds since 1970), 0: not known
+    float rarity = 0;       // the share of players who have it, in percent (0: not known)
 };
 std::vector<Row> List();
 bool Busy();               // a login or the game's set is on its way

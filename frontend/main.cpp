@@ -3955,13 +3955,14 @@ int main(int argc, char** argv)
         M_CONTROLS, M_STARTBTN, M_FAST, M_FFLOWRES, M_SAVESTATE, M_LOADSTATE, M_RESET, M_QUIT,
         M_DISPLAY, M_SOUND, M_GRAPHICS, M_CONTROLMENU, M_BACK, M_CHEATS, M_NOTHING,
         M_VOLUME, M_RA, M_RA_ON, M_RA_ACCOUNT, M_RA_GAME, M_RA_LOGIN, M_RA_TYPED, M_RA_CANCEL, M_BOTHVER,
-        M_RA_LIST,
+        M_RA_LIST, M_ACH_POINTS, M_ACH_STATUS, M_ACH_RARITY,
         M_CHEAT0 = 1000, // (M_CHEAT0 + i: cheat i, CHEATS)
         M_ACH0 = 30000   // (M_ACH0 + i: achievement i, ACHIEVEMENTS)
     };
-    enum { PAGE_MAIN, PAGE_KEYS, PAGE_DISPLAY, PAGE_GRAPHICS, PAGE_CONTROLS, PAGE_CHEATS, PAGE_RA, PAGE_SOUND, PAGE_RA_LIST };
+    enum { PAGE_MAIN, PAGE_KEYS, PAGE_DISPLAY, PAGE_GRAPHICS, PAGE_CONTROLS, PAGE_CHEATS, PAGE_RA, PAGE_SOUND, PAGE_RA_LIST, PAGE_RA_DETAIL };
     // ACHIEVEMENTS (RETROACHIEVEMENTS' list): read from the set as the page opens.
     std::vector<Achievements::Row> achList;
+    int achDetail = -1; // the one ACHIEVEMENTS' details are shown for (A on it)
     // RETROACHIEVEMENTS' LOG IN: the user name typed (raTyping 1), then the password (2), on the
     // keyboard or a phone's on-screen one (SDL's text input). The password goes to the server once
     // and is then forgotten.
@@ -4127,6 +4128,30 @@ int main(int argc, char** argv)
             for (size_t i = 0; i < achList.size(); i++)
                 add(M_ACH0 + (int)i, Cheats::Shown(achList[i].title, 22).c_str(),
                     achList[i].unlocked ? "DONE" : std::to_string(achList[i].points) + " PTS", true);
+            add(M_BACK, "BACK", "");
+        }
+        else if (menuPage == PAGE_RA_DETAIL && achDetail >= 0 && achDetail < (int)achList.size())
+        {
+            // One achievement's details: the title is the box's, the description under it.
+            const Achievements::Row& r = achList[achDetail];
+            add(M_ACH_POINTS, "POINTS", std::to_string(r.points), true);
+            std::string status = r.unlocked ? "UNLOCKED" : r.progress.empty() ? "NOT YET" : "SO FAR " + r.progress;
+            if (r.unlocked && r.unlockTime > 0)
+            {
+                const time_t t = (time_t)r.unlockTime;
+                if (const struct tm* lt = localtime(&t))
+                {
+                    static const char* months[] = { "JAN", "FEB", "MAR", "APR", "MAY", "JUN", "JUL", "AUG", "SEP", "OCT", "NOV", "DEC" };
+                    status = "UNLOCKED " + std::to_string(lt->tm_mday) + " " + months[lt->tm_mon % 12] + " " + std::to_string(1900 + lt->tm_year);
+                }
+            }
+            add(M_ACH_STATUS, "STATUS", status, true);
+            if (r.rarity > 0)
+            {
+                char rare[32];
+                snprintf(rare, sizeof rare, "%.1f%% OF PLAYERS", r.rarity);
+                add(M_ACH_RARITY, "HAVE IT", rare, true);
+            }
             add(M_BACK, "BACK", "");
         }
         else if (menuPage == PAGE_RA)
@@ -5302,6 +5327,13 @@ int main(int argc, char** argv)
             const int id = backTo >= 0 ? M_BACK : hit >= 0 && hit < (int)menuIds.size() ? menuIds[hit] : -1;
             if (backTo >= 0) hit = 0;
             // A cheat: on or off at once, for the game as it runs (cheats.h).
+            // An achievement in ACHIEVEMENTS: its details.
+            if (id >= M_ACH0 && id - M_ACH0 < (int)achList.size() && dir == 0)
+            {
+                achDetail = id - M_ACH0;
+                goPage(PAGE_RA_DETAIL, M_BACK);
+                hit = -1;
+            }
             if (id >= M_CHEAT0 && id < M_ACH0)
             {
                 cheats.Toggle((size_t)(id - M_CHEAT0));
@@ -5368,6 +5400,12 @@ int main(int argc, char** argv)
                 hit = -1;
                 break;
             case M_BACK:
+                if (menuPage == PAGE_RA_DETAIL)
+                {
+                    goPage(PAGE_RA_LIST, M_ACH0 + achDetail);
+                    hit = -1;
+                    break;
+                }
                 if (menuPage == PAGE_RA_LIST)
                 {
                     goPage(PAGE_RA, M_RA_LIST);
@@ -6773,7 +6811,7 @@ int main(int argc, char** argv)
             std::string hint = touchPadUsed && touchPad.visible ? "TAP: CHOOSE   OUTSIDE: BACK"
                                : btn(Controls::A) + ": SELECT   " + btn(Controls::B) + ": BACK";
             const int selId = menu.selected >= 0 && menu.selected < (int)menuIds.size() ? menuIds[menu.selected] : -1;
-            static const char* pageTitle[] = { "", "KEYS AND BUTTONS", "DISPLAY", "GRAPHICS", "CONTROLS", "CHEATS", "RETROACHIEVEMENTS", "SOUND", "ACHIEVEMENTS" };
+            static const char* pageTitle[] = { "", "KEYS AND BUTTONS", "DISPLAY", "GRAPHICS", "CONTROLS", "CHEATS", "RETROACHIEVEMENTS", "SOUND", "ACHIEVEMENTS", "ACHIEVEMENT" };
             if (menuPage == PAGE_KEYS)
             {
                 if (!(touchPadUsed && touchPad.visible)) hint = btn(Controls::A) + ": CHANGE   " + btn(Controls::B) + ": BACK";
@@ -6812,9 +6850,19 @@ int main(int argc, char** argv)
             if (selId >= M_CHEAT0 && selId < M_ACH0 && !(touchPadUsed && touchPad.visible)) hint = btn(Controls::A) + ": ON / OFF   " + btn(Controls::B) + ": BACK";
             if (selId == M_RA_LIST) hint = "WHAT EACH ASKS FOR";
             std::string note = selId >= M_CHEAT0 && selId < M_ACH0 && selId - M_CHEAT0 < (int)cheats.items.size() ? cheats.items[selId - M_CHEAT0].note : std::string();
+            std::string title = pageTitle[menuPage];
+            if (menuPage == PAGE_RA_DETAIL && achDetail >= 0 && achDetail < (int)achList.size())
+            {
+                // (The title in the box's top line, at most 30 letters; the whole of it, if longer,
+                // starts the description.)
+                const std::string full = Cheats::Shown(achList[achDetail].title, 200);
+                title = full.size() > 30 ? full.substr(0, 28) + ".." : full;
+                note = (full.size() > 30 ? full + ": " : std::string()) + achList[achDetail].description;
+                hint = (touchPadUsed && touchPad.visible) ? "TAP OUTSIDE: BACK" : btn(Controls::B) + ": BACK";
+            }
             if (menuPage == PAGE_RA_LIST)
             {
-                hint = (touchPadUsed && touchPad.visible) ? "TAP OUTSIDE: BACK" : btn(Controls::B) + ": BACK";
+                hint = (touchPadUsed && touchPad.visible) ? "TAP: DETAILS" : btn(Controls::A) + ": DETAILS   " + btn(Controls::B) + ": BACK";
                 if (selId >= M_ACH0 && selId - M_ACH0 < (int)achList.size())
                 {
                     const Achievements::Row& r = achList[selId - M_ACH0];
@@ -6822,7 +6870,7 @@ int main(int argc, char** argv)
                     if (!r.unlocked && !r.progress.empty()) note += " SO FAR: " + r.progress;
                 }
             }
-            menu.Draw(canvas, pageTitle[menuPage], hint, note);
+            menu.Draw(canvas, title, hint, note);
             }
             overlayUsed = true;
         }
