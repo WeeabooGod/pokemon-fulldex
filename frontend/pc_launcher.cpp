@@ -305,7 +305,7 @@ void OpenFolder(const std::string& path)
 {
 #ifdef SSR_IOS
     // (iOS: the Files app, opened at the folder; the app's folder shows there as On My iPhone >
-    // Pokemon DS Widescreen.)
+    // Pokémon Fulldex, the app's name.)
     std::string url = "shareddocuments://";
 #else
     std::string url = "file://";
@@ -355,7 +355,7 @@ int PickGame(Folders& fo, std::vector<Launcher::Game>& games, int selected, bool
         fprintf(stderr, "[launcher] SDL_Init: %s\n", SDL_GetError());
         return -1;
     }
-    SDL_Window* window = SDL_CreateWindow("Pokemon DS Widescreen", SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED, winW, winH,
+    SDL_Window* window = SDL_CreateWindow("Pokémon Fulldex", SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED, winW, winH,
         SDL_WINDOW_RESIZABLE | SDL_WINDOW_ALLOW_HIGHDPI | (fullscreen ? SDL_WINDOW_FULLSCREEN_DESKTOP : 0));
     SDL_Renderer* renderer = window ? SDL_CreateRenderer(window, -1, SDL_RENDERER_ACCELERATED | SDL_RENDERER_PRESENTVSYNC) : nullptr;
     if (window && !renderer) renderer = SDL_CreateRenderer(window, -1, SDL_RENDERER_SOFTWARE);
@@ -1200,7 +1200,7 @@ bool Start(int& argc, char**& argv)
     fo.funcs = fo.dir + "/data/funcs";
 #if defined(SSR_IOS)
     // iOS: the function tables in the app (read-only); the ROMs, saves, settings and game.log in
-    // its Documents folder, which the Files app shows as On My iPhone > Pokemon DS Widescreen
+    // its Documents folder, which the Files app shows as On My iPhone > Pokémon Fulldex
     // (Info.plist: UIFileSharingEnabled), so ROMs can be put there and logs taken out.
     {
         const char* home = getenv("HOME");
@@ -1214,6 +1214,8 @@ bool Start(int& argc, char**& argv)
     if (fo.dir.find(".app/Contents/") != std::string::npos)
     {
         const char* home = getenv("HOME");
+        // (The program's name before it was Pokémon Fulldex: kept, so the ROMs, saves and
+        // settings already there stay where they are.)
         fo.dir = std::string(home ? home : ".") + "/Library/Application Support/Pokemon DS Widescreen";
         for (size_t i = 1; i <= fo.dir.size(); i++) // (each folder on the way, as mkdir -p)
             if (i == fo.dir.size() || fo.dir[i] == '/') MakeDir(fo.dir.substr(0, i));

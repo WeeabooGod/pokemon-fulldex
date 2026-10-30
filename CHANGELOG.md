@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+- **A new name: Pokémon Fulldex**, now that it plays GBA games as well as DS ones. The app, the
+  Switch's Homebrew Menu, the phone icons and the PC's window all show it; on Windows the program
+  is `Pokemon Fulldex.exe` (DESKTOP SHORTCUTS: CREATE again for shortcuts to it). Nothing moves:
+  the ROMs, saves, settings and the downloads' file names are where and what they were.
 - **SOUND, with VOLUME**, a page of its own in the pause menu and on the game list's settings
   page: a slider from OFF, then 10% to 100% (left and right change it, or tap the bar on a
   phone).

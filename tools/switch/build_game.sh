@@ -181,7 +181,7 @@ all)
     fi
     say "Compiling for the Switch"
     build SSR_SWITCH_JIT=1 SSR_SWITCH_GEN="$HERE/build-gen-tables" SSR_SWITCH_BUILD="$BUILD" \
-        SSR_SWITCH_ROMFS="$ROMFS" SSR_ALL_GAMES=ON SSR_PC_ART="$ART" SSR_NRO_TITLE="Pokemon DS Widescreen" bash tools/switch/build.sh
+        SSR_SWITCH_ROMFS="$ROMFS" SSR_ALL_GAMES=ON SSR_PC_ART="$ART" SSR_NRO_TITLE="Pokémon Fulldex" bash tools/switch/build.sh
     mkdir -p build-sd/switch/pokemon-ds-wide/roms
     cp "$BUILD/ssrecomp.nro" build-sd/switch/pokemon-ds-wide/pokemon-ds-wide.nro
     ZIP=pokemon-ds-wide-all-switch.zip
@@ -209,7 +209,7 @@ print('zip holds:', ', '.join(names))
 Copy build-sd/switch to the root of the SD card, then your ROMs into /switch/pokemon-ds-wide/roms/ (any
 names; English Black, White, Black 2, White 2; SoulSilver and HeartGold US$([ -n "${SSR_GBA_DIR:-}" ] && printf '; the GBA games, Emerald,\nFireRed, LeafGreen and Ultra Violet, there or in a GBA folder in it')). Its list also shows
 the games in the other folders of /switch (the one-game downloads), each with the save in its folder.
-On the Switch, hold R while starting any game and choose Pokemon DS Widescreen.
+On the Switch, hold R while starting any game and choose Pokémon Fulldex.
 The zip holds only the program, ready to share: nothing of the games.
 EOF
     exit 0

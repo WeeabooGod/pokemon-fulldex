@@ -1,10 +1,10 @@
-# Pokémon DS Widescreen
+# Pokémon Fulldex
 
-**Your favourite DS Pokémon games on a PC (Windows and Linux), a Mac, a Steam
+**Your favourite DS and GBA Pokémon games on a PC (Windows and Linux), a Mac, a Steam
 Deck or other handheld PC, an Android phone, an iPhone or iPad, or a modded Nintendo Switch: one screen,
 widescreen, 60 fps, up to 4K on a PC and 720p on the Switch.** No more squinting at two tiny stacked DS screens.
 
-![Pokémon DS Widescreen: Black 2, White 2, Black, White, SoulSilver, HeartGold and Platinum in widescreen at 60 fps, on a Nintendo Switch, a PC, a Steam Deck, an Android phone and a Mac](docs/screenshots/trailer-2.gif)
+![Pokémon Fulldex: Black 2, White 2, Black, White, SoulSilver, HeartGold and Platinum in widescreen at 60 fps, on a Nintendo Switch, a PC, a Steam Deck, an Android phone and a Mac](docs/screenshots/trailer-2.gif)
 
 ## Downloads
 
@@ -37,7 +37,7 @@ cartridge. Copy it in under the game's name, in this folder:
 | Linux AppImage | `~/.local/share/pokemon-ds-wide/saves` |
 | Mac | `~/Library/Application Support/Pokemon DS Widescreen/saves` |
 | Android | the `saves` folder inside the folder you chose for your ROMs |
-| iPhone and iPad | Files app: On My iPhone (or iPad) > Pokemon DS Widescreen > `saves` |
+| iPhone and iPad | Files app: On My iPhone (or iPad) > Pokémon Fulldex > `saves` |
 | Nintendo Switch | `/switch/pokemon-ds-wide/` on the SD card |
 
 | Game | Save name |
@@ -98,7 +98,7 @@ in a `cheats` folder (make it if it isn't there):
 | Linux AppImage | `~/.local/share/pokemon-ds-wide/cheats` |
 | Mac | `~/Library/Application Support/Pokemon DS Widescreen/cheats` |
 | Android | `cheats` inside the folder you chose for your ROMs |
-| iPhone and iPad | Files app: On My iPhone (or iPad) > Pokemon DS Widescreen > `cheats` |
+| iPhone and iPad | Files app: On My iPhone (or iPad) > Pokémon Fulldex > `cheats` |
 | Nintendo Switch | `/switch/pokemon-ds-wide/cheats/` on the SD card |
 
 - **A cheat database:** `usrcheat.dat` holds codes for every game; CHEATS lists this
@@ -153,7 +153,7 @@ DS game, presented the way it should look on a modern screen.
    `~/.local/share/pokemon-ds-wide` (**O** in the game list opens its `roms` folder).
 2. **Unpack it** anywhere (not inside Program Files) and put your ROMs in its
    `roms` folder (any names).
-3. **Start** `Pokemon DS Launcher.exe` (Linux: `pokemon-ds-wide`) and pick a game.
+3. **Start** `Pokemon Fulldex.exe` (Linux: `pokemon-ds-wide`) and pick a game.
    Windows may warn about an unknown publisher the first time: choose
    "More info", then "Run anyway".
 
@@ -211,11 +211,11 @@ library in Gaming Mode with a gamepad controller layout. Set 3D RESOLUTION to
    (or M2, M3, M4, ...), take `pokemon-ds-wide-pc-macos-arm64.zip`; if it says **Processor:
    Intel**, take `pokemon-ds-wide-pc-macos-x86_64.zip`.
 2. **Unzip it** (double-click it in Downloads; Safari may have done it already) and **drag
-   Pokemon DS Widescreen into Applications**.
+   Pokémon Fulldex into Applications**.
 3. **Open it once.** macOS says it can't check the app (it isn't notarised by Apple): click
    **Done**. Then go to **System Settings > Privacy & Security**, scroll down to the line about
-   Pokemon DS Widescreen and click **Open Anyway**, then **Open**. You only do this once.
-   *Or*, in Terminal: `xattr -dr com.apple.quarantine "/Applications/Pokemon DS Widescreen.app"`,
+   Pokémon Fulldex and click **Open Anyway**, then **Open**. You only do this once.
+   *Or*, in Terminal: `xattr -dr com.apple.quarantine "/Applications/Pokemon Fulldex.app"`,
    then open it as any app.
 4. **Add your ROMs:** press **O** in the game list. The Finder opens its `roms` folder
    (`~/Library/Application Support/Pokemon DS Widescreen/roms`): put your ROMs in it and they
@@ -249,7 +249,7 @@ Tell us how yours runs, with its `game.log`.
 1. Unzip it to the root of the SD card. It makes `/switch/pokemon-ds-wide/`
    with an empty `roms` folder inside.
 2. Copy your ROMs into `/switch/pokemon-ds-wide/roms/` (any names).
-3. Hold R while starting any game, pick **Pokemon DS Widescreen**, then the
+3. Hold R while starting any game, pick **Pokémon Fulldex**, then the
    game (started from the album there is not enough memory).
 
 In the list the D-pad or a stick moves between games, **A** plays, **Y** opens
@@ -357,7 +357,7 @@ iPhone. From a Windows PC or a Mac:
    (tap **Trust** on it), and give the IPA to the tool with your Apple ID.
 3. **On the iPhone:** turn on **Settings > Privacy & Security > Developer Mode** (it restarts),
    then trust your Apple ID in **Settings > General > VPN & Device Management**.
-4. **Put your ROMs** in the Files app: **On My iPhone > Pokemon DS Widescreen > roms** (AirDrop,
+4. **Put your ROMs** in the Files app: **On My iPhone > Pokémon Fulldex > roms** (AirDrop,
    iCloud Drive, or from a PC: the Apple Devices app's Files tab, or the Finder on a Mac).
    **FOLDER** at the top of the game list opens that folder. Tap a game twice to play.
 
@@ -367,7 +367,7 @@ saves stay). AltStore and SideStore can do that for you.
 **Controls:** as on Android: on-screen buttons while you play by touch (MENU at the top for
 the pause menu), or a controller (Xbox, PlayStation, Backbone and others), which hides them.
 
-**Saves, settings, cheats and `game.log`** are all in that Pokemon DS Widescreen folder in the
+**Saves, settings, cheats and `game.log`** are all in that Pokémon Fulldex folder in the
 Files app.
 
 **What to expect:** iOS lets no app make code as it runs, so the faster way the other
@@ -504,7 +504,7 @@ version and the **`game.log`** file, which says what the program did:
    to. On the Switch it is in the game's folder on the SD card:
    `/switch/pokemon-ds-wide/` for the all-in-one, otherwise the game's own
    folder (e.g. `/switch/pokemon-black2-wide/`). On an iPhone or iPad it is in the
-   Files app: On My iPhone > Pokemon DS Widescreen (share it from there). It is
+   Files app: On My iPhone > Pokémon Fulldex (share it from there). It is
    written again each time the game starts, so copy it straight after the problem.
 2. **Switch: get it onto a computer.** Put the SD card in a card reader; or,
    leaving it in the Switch, use Hekate's **Tools > USB Tools > SD Card** (or

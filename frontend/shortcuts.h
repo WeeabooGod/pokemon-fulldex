@@ -232,7 +232,7 @@ inline int Make(const std::string& dir, const std::vector<Launcher::Game>& games
         link->SetPath(exe);
         link->SetArguments((L"--game " + Wide(g.code)).c_str());
         link->SetWorkingDirectory(Wide(dir).c_str());
-        link->SetDescription(Wide(Title(g) + " (Pokemon DS Widescreen)").c_str());
+        link->SetDescription(Wide(Title(g) + " (Pokémon Fulldex)").c_str());
         const std::vector<uint8_t> ico = Ico(g);
         const std::string icoPath = iconDir + "/" + g.code + ".ico";
         if (!ico.empty() && WriteFile(icoPath, ico)) link->SetIconLocation(Wide(icoPath).c_str(), 0);
@@ -330,7 +330,7 @@ inline int Make(const std::string& dir, const std::vector<Launcher::Game>& games
         std::string lower = g.code;
         for (char& c : lower) c = (char)tolower((unsigned char)c);
         const std::string entry = "[Desktop Entry]\nType=Application\nName=" + Title(g) +
-            "\nComment=Pokemon DS Widescreen\nExec=" + quoted + " --game " + g.code +
+            "\nComment=Pokémon Fulldex\nExec=" + quoted + " --game " + g.code +
             "\nPath=" + dir + "\n" + (icon ? "Icon=" + png + "\n" : "") + "Terminal=false\nCategories=Game;\n";
         const std::string file = "pokemon-ds-wide-" + lower + ".desktop";
         bool ok = WriteFile(apps + "/" + file, std::vector<uint8_t>(entry.begin(), entry.end()));

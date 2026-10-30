@@ -545,7 +545,7 @@ inline void Draw(Canvas& c, const std::vector<Game>& games, int tab, int selecte
     // A band along the top with the title.
     c.Fill(0, 0, c.w, 22 * s, th.band);
     c.Fill(0, 22 * s, c.w, th.bandLineH * s, th.bandLine);
-    const std::string title = "POKEMON WIDESCREEN";
+    const std::string title = "POKEMON FULLDEX"; // (Pokémon Fulldex: the font has no É)
     c.Text((c.w - Canvas::TextWidth(title, s + 1)) / 2, 6 * s, title, s + 1, th.title);
     // The tabs: the chosen one bright and underlined.
     for (int t = 0; t < TABS; t++)

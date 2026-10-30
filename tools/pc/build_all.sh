@@ -12,7 +12,7 @@
 # tables come from the decompilations' symbol files: the downloads hold nothing of the games.
 #
 # The results, in build-pc-dist/:
-#   pokemon-ds-wide-pc-windows-x86_64.zip   Pokemon DS Launcher.exe, SDL2.dll, data/, roms/
+#   pokemon-ds-wide-pc-windows-x86_64.zip   Pokemon Fulldex.exe, SDL2.dll, data/, roms/
 #   pokemon-ds-wide-pc-linux-x86_64.tar.gz  pokemon-ds-wide, libSDL2-2.0.so.0, data/, roms/
 #   pokemon-ds-wide-pc-linux-x86_64.AppImage the same as one file (and its .zsync), for Gear Lever
 #                                            and other AppImage managers; ROMs, saves and settings
@@ -147,7 +147,7 @@ stage() {
 check_contents() { # list of paths, one per line, relative to the download's top folder
     python3 -c "
 import re, sys
-ok = re.compile(r'^pokemon-ds-wide/(pokemon-ds-wide|Pokemon DS Launcher\.exe|SDL2\.dll|libSDL2-2\.0\.so\.0|LICENSE\.txt|LICENSE-SDL2\.txt|LICENSE-mGBA\.txt|README\.txt|roms/|data/|data/funcs/|data/funcs/(IREO|IRDO|IRBO|IRAO|CPUE)\.txt)?$')
+ok = re.compile(r'^pokemon-ds-wide/(pokemon-ds-wide|Pokemon Fulldex\.exe|SDL2\.dll|libSDL2-2\.0\.so\.0|LICENSE\.txt|LICENSE-SDL2\.txt|LICENSE-mGBA\.txt|README\.txt|roms/|data/|data/funcs/|data/funcs/(IREO|IRDO|IRBO|IRAO|CPUE)\.txt)?$')
 bad = [l for l in sys.stdin.read().splitlines() if l and not ok.match(l)]
 if bad: sys.exit('unexpected files in the download: %s' % bad)
 "
@@ -173,8 +173,8 @@ if [ "$TARGET" != linux ]; then
     ninja -C build-pc-windows ssrecomp
     OUT=build-pc-dist/windows/pokemon-ds-wide
     stage "$OUT"
-    cp build-pc-windows/ssrecomp.exe "$OUT/Pokemon DS Launcher.exe"
-    x86_64-w64-mingw32-strip "$OUT/Pokemon DS Launcher.exe"
+    cp build-pc-windows/ssrecomp.exe "$OUT/Pokemon Fulldex.exe"
+    x86_64-w64-mingw32-strip "$OUT/Pokemon Fulldex.exe"
     cp "$SDL_ROOT/bin/SDL2.dll" "$OUT/"
     cp "$DEPS/SDL2-$SDL_VERSION/LICENSE.txt" "$OUT/LICENSE-SDL2.txt"
     ZIP=pokemon-ds-wide-pc-windows-x86_64.zip
@@ -258,7 +258,7 @@ PY
     cat > "$AD/pokemon-ds-wide.desktop" <<'DESKTOP'
 [Desktop Entry]
 Type=Application
-Name=Pokemon DS Widescreen
+Name=Pokémon Fulldex
 Comment=The DS Pokemon games as one widescreen picture
 Exec=pokemon-ds-wide
 Icon=pokemon-ds-wide
@@ -279,7 +279,7 @@ ls -l build-pc-dist/*.zip build-pc-dist/*.tar.gz build-pc-dist/*.AppImage* 2>/de
 cat <<EOF
 
 Unpack the download anywhere, put your ROMs in its roms folder (any names: English Black, White,
-Black 2, White 2, SoulSilver, HeartGold and Platinum, US or Europe$([ -n "$GBA" ] && printf '; and the GBA games, Emerald,\nFireRed, LeafGreen and Ultra Violet')) and start Pokemon DS Launcher.exe
+Black 2, White 2, SoulSilver, HeartGold and Platinum, US or Europe$([ -n "$GBA" ] && printf '; and the GBA games, Emerald,\nFireRed, LeafGreen and Ultra Violet')) and start Pokemon Fulldex.exe
 (Linux: pokemon-ds-wide).
 The downloads hold only the program: nothing of the games.
 EOF
