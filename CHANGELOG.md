@@ -2,6 +2,9 @@
 
 ## Unreleased
 
+- **The GBA games take the DS games' settings:** SMOOTH SCALING, FPS COUNTER, VOLUME and BUTTONS
+  are copied to them each time one starts, so they look and sound the same. The picture always
+  fills the screen (SCALING: WHOLE PIXELS, set before, left a black border round it).
 - **RetroAchievements: an ACHIEVEMENTS list** in the pause menu (RETROACHIEVEMENTS > ACHIEVEMENTS,
   once a game's set is loaded): every achievement with its points or DONE, unlocked ones first;
   the chosen one's description, points and progress so far under the box. A on one opens its
