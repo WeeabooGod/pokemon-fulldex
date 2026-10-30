@@ -863,6 +863,13 @@ inline std::vector<Setting> SettingsList()
     l.push_back({ "list_background", "BACKGROUND", { { "plain", "PLAIN" }, { "picture", "YOUR PICTURE" } }, "plain",
                   "YOUR PICTURE: PUT A PICTURE NAMED BACKGROUND.JPG OR BACKGROUND.PNG BESIDE YOUR SAVES FOLDER. BEST AT 1920 X 1080 (16:9); ANY SIZE WORKS, CUT TO FILL THE SCREEN. IT IS SHOWN DARKENED BEHIND THE GAMES." });
 #endif
+#if !defined(__SWITCH__)
+    // RetroAchievements from the game list too (pc_launcher.cpp: the login, as the pause menu's).
+    l.push_back({ "ra", "RETROACHIEVEMENTS", onOff, "0",
+                  "ON: YOUR RETROACHIEVEMENTS ACCOUNT FOLLOWS THE GAMES YOU PLAY AND UNLOCKS POP UP AS YOU PLAY (CASUAL MODE: SAVE STATES AND FAST FORWARD STILL WORK; PAUSED WHILE A CHEAT IS ON)." });
+    l.push_back({ "!ra_login", "ACCOUNT", { { "", "LOG IN" } }, "",
+                  "LOG IN WITH YOUR RETROACHIEVEMENTS USER NAME AND PASSWORD (A FREE ACCOUNT FROM RETROACHIEVEMENTS.ORG). THE PASSWORD IS SENT ONCE AND NOT KEPT. CHOSEN AGAIN WHEN LOGGED IN: LOG OUT." });
+#endif
     // Only in the pause menu.
 #ifdef __SWITCH__
     l.push_back({ nullptr, "THE PAUSE MENU", {}, "", "PRESS + WHILE PLAYING (+ AND - TOGETHER WITH START BUTTON ON DS START). EVERYTHING ABOVE IS THERE TOO AND CAN BE CHANGED AS YOU PLAY." });
@@ -926,15 +933,17 @@ inline const std::vector<SettingsGroup>& SettingsGroups()
         { "!group3", "CONTROLS", "" },
         { "!group4", "SHORTCUTS", "" },
         { "!group5", "GAME LIST", "" },
-        { "!group6", "HELP", "" },
+        { "!group6", "RETROACHIEVEMENTS", "" },
+        { "!group7", "HELP", "" },
     };
     return g;
 }
 // Which group an option is in (SettingsGroups).
 inline int GroupOf(const Setting& s)
 {
-    if (!s.key) return !strcmp(s.name, "KEYS AND BUTTONS") ? 3 : 6;
+    if (!s.key) return !strcmp(s.name, "KEYS AND BUTTONS") ? 3 : 7;
     if (!strncmp(s.key, "list_", 5)) return 5;
+    if (!strcmp(s.key, "ra") || !strcmp(s.key, "!ra_login")) return 6;
     static const char* display[] = { "view", "large_screen", "fullscreen", "smooth", "battle_buttons", "show_fps" };
     static const char* controls[] = { "start_button", "buttons", "pad_touch" };
     for (const char* k : display)

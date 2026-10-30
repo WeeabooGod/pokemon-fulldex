@@ -62,6 +62,12 @@ std::string Detail();      // what went wrong last (a login, the game's set), fo
 bool LoggedIn();           // an account is kept (its token)
 bool Busy();               // a login or the game's set is on its way
 
+// A login from the game list, with no game running (pc_launcher.cpp): the user name and password
+// sent at once, the case-corrected name and the token given back, as the pause menu's LOG IN keeps
+// them (ra_user=, ra_token=). Waits for the server's answer, so it is run off the main thread.
+bool LoginForToken(const std::string& user, const std::string& password, const std::string& product,
+                   std::string& outUser, std::string& outToken, std::string& error);
+
 // Messages for the player (an unlock, a login that failed, ...), in the menus' font.
 bool PopMessage(std::string& message);
 

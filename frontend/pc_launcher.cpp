@@ -7,7 +7,10 @@
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
+#include <atomic>
 #include <map>
+#include <memory>
+#include <thread>
 #include <string>
 #include <vector>
 #include <sys/stat.h>
@@ -39,6 +42,7 @@
 #undef STB_IMAGE_IMPLEMENTATION
 #include "launcher.h"
 #include "controls.h"
+#include "achievements.h"
 #include "ssr_os.h"
 #if !defined(SSR_PHONE) && !defined(__SWITCH__)
 #include "shortcuts.h"
@@ -117,6 +121,32 @@ bool ConfigFullscreen(const std::string& cfg, int& w, int& h)
 }
 
 // F11 in the list: the game then starts the same way (the settings file says so).
+// Lines of the settings file set (key=value) or, for an empty value, taken out; the others kept.
+void SetConfigValues(const std::string& cfg, const std::vector<std::pair<std::string, std::string>>& values)
+{
+    std::vector<std::string> lines;
+    if (FILE* f = fopen(cfg.c_str(), "r"))
+    {
+        char line[1024];
+        while (fgets(line, sizeof line, f))
+        {
+            std::string l = line;
+            while (!l.empty() && (l.back() == '\n' || l.back() == '\r')) l.pop_back();
+            bool set = false;
+            for (const auto& kv : values) set |= l.size() > kv.first.size() && !l.compare(0, kv.first.size(), kv.first) && l[kv.first.size()] == '=';
+            if (!set) lines.push_back(l);
+        }
+        fclose(f);
+    }
+    for (const auto& kv : values)
+        if (!kv.second.empty()) lines.push_back(kv.first + "=" + kv.second);
+    if (FILE* f = fopen(cfg.c_str(), "w"))
+    {
+        for (const std::string& l : lines) fprintf(f, "%s\n", l.c_str());
+        fclose(f);
+    }
+}
+
 void SetConfigFullscreen(const std::string& cfg, bool on)
 {
     std::vector<std::string> lines;
@@ -522,6 +552,92 @@ int PickGame(Folders& fo, std::vector<Launcher::Game>& games, int selected, bool
         if (hit >= 0) keysActivate(hit);
         return true;
     };
+    // RETROACHIEVEMENTS' ACCOUNT (the settings page): LOG IN typed here as in the pause menu (the
+    // user name, then the password, shown only as a count), sent on a thread of its own
+    // (Achievements::LoginForToken); the name and token kept in the settings file as the pause
+    // menu keeps them (ra_user=, ra_token=), with ra=1. Chosen when logged in: LOG OUT.
+    struct RaLogin
+    {
+        std::atomic<bool> busy { false }, done { false };
+        bool ok = false;
+        std::string user, token, error;
+    };
+    std::shared_ptr<RaLogin> raState = std::make_shared<RaLogin>();
+    bool raOpen = false;
+    int raField = 0; // 0 the user name, 1 the password
+    std::string raUser, raPass, raNote;
+    Menu raMenu;
+    auto raBuild = [&]() {
+        raMenu.items.clear();
+        std::string u = raUser.size() > 18 ? raUser.substr(0, 18) : raUser;
+        raMenu.items.push_back({ "USER NAME", (u.empty() ? std::string("...") : u) + (raField == 0 ? "_" : ""), true });
+        raMenu.items.push_back({ "PASSWORD", std::to_string(raPass.size()) + " CHARACTERS" + (raField == 1 ? "_" : ""), true });
+        raMenu.items.push_back({ raState->busy ? "LOGGING IN..." : "LOG IN", "" });
+        raMenu.items.push_back({ "CANCEL", "" });
+        if (!raState->busy) raMenu.selected = std::min(raMenu.selected, 3);
+    };
+    auto raAccountShown = [&]() -> std::string {
+        if (raState->busy) return "LOGGING IN...";
+        const std::string user = Launcher::ConfigValue(fo.cfg, "ra_user");
+        if (!Launcher::ConfigValue(fo.cfg, "ra_token").empty())
+        {
+            std::string u = user.size() > 14 ? user.substr(0, 14) : user;
+            for (char& c : u) c = (char)toupper((unsigned char)c);
+            return "LOG OUT " + u;
+        }
+        return "LOG IN";
+    };
+    auto raClose = [&]() {
+        raOpen = false;
+        std::fill(raPass.begin(), raPass.end(), '\0');
+        raPass.clear();
+        SDL_StopTextInput();
+    };
+    auto raSubmit = [&]() {
+        if (raState->busy) return;
+        if (raUser.empty()) { raField = 0; raNote = "TYPE YOUR USER NAME"; return; }
+        if (raPass.empty()) { raField = 1; raNote = "TYPE YOUR PASSWORD"; return; }
+        raNote = "LOGGING IN...";
+        raState = std::make_shared<RaLogin>();
+        raState->busy = true;
+        std::shared_ptr<RaLogin> st = raState;
+        const std::string user = raUser, pass = raPass;
+        std::fill(raPass.begin(), raPass.end(), '\0');
+        raPass.clear();
+        std::thread([st, user, pass]() {
+            std::string error;
+            st->ok = Achievements::LoginForToken(user, pass, std::string("PokemonDSWidescreen/") + SSR_RA_VERSION, st->user, st->token, st->error);
+            st->busy = false;
+            st->done = true;
+        }).detach();
+        raBuild();
+    };
+    // The login's answer, looked at each pass.
+    auto raPoll = [&]() {
+        if (!raState->done) return;
+        raState->done = false;
+        if (raState->ok)
+        {
+            SetConfigValues(fo.cfg, { { "ra", "1" }, { "ra_user", raState->user }, { "ra_token", raState->token } });
+            page.Open(fo.cfg, true);
+            raNote.clear();
+            raClose();
+        }
+        else
+        {
+            std::string err = raState->error;
+            for (char& c : err) c = (char)toupper((unsigned char)c);
+            raNote = "LOGIN FAILED: " + err;
+            raField = 1;
+            raBuild();
+        }
+    };
+    auto raActivate = [&](int row) {
+        if (row == 0 || row == 1) raField = row;
+        else if (row == 2) raSubmit();
+        else if (row == 3) raClose();
+        if (raOpen) raBuild();
+    };
     // The list's look (GAME LIST on the settings page: COLOUR, BACKGROUND), read again when one
     // of them changes or the ROM folder (where a phone's picture is) does.
     Launcher::Theme theme;
@@ -530,6 +646,27 @@ int PickGame(Folders& fo, std::vector<Launcher::Game>& games, int selected, bool
     auto change = [&](int d) {
         const char* key = page.Change(d);
         if (key && !strncmp(key, "list_", 5)) Launcher::LoadLook(fo.cfg, fo.art, theme, background);
+        if (key && !strcmp(key, "!ra_login"))
+        {
+            if (raState->busy) return;
+            if (!Launcher::ConfigValue(fo.cfg, "ra_token").empty())
+            {
+                // LOG OUT: the token forgotten here (the pause menu's LOG OUT does the same).
+                SetConfigValues(fo.cfg, { { "ra_token", "" } });
+                page.Open(fo.cfg, true);
+                return;
+            }
+            raOpen = true;
+            raField = 0;
+            raUser = Launcher::ConfigValue(fo.cfg, "ra_user");
+            raPass.clear();
+            raNote.clear();
+            raMenu.selected = raUser.empty() ? 0 : 1;
+            if (!raUser.empty()) raField = 1;
+            SDL_StartTextInput();
+            raBuild();
+            return;
+        }
         if (key && !strcmp(key, "!keys"))
         {
             ctl.Load(fo.cfg);
@@ -669,6 +806,69 @@ int PickGame(Folders& fo, std::vector<Launcher::Game>& games, int selected, bool
         bool any = SDL_WaitEventTimeout(&e, 50);
         while (any)
         {
+            // (RETROACHIEVEMENTS' LOG IN takes the keyboard, the buttons and taps while it is up.)
+            if (raOpen && e.type != SDL_QUIT)
+            {
+                if (e.type == SDL_TEXTINPUT && !raState->busy && raField <= 1)
+                {
+                    std::string& f = raField == 0 ? raUser : raPass;
+                    for (const char* p = e.text.text; *p; p++)
+                        if ((unsigned char)*p >= 32 && f.size() < 64) f += *p;
+                    raNote.clear();
+                    raBuild();
+                }
+                else if (e.type == SDL_KEYDOWN)
+                {
+                    const SDL_Scancode sc = e.key.keysym.scancode;
+                    if (sc == SDL_SCANCODE_ESCAPE || sc == SDL_SCANCODE_AC_BACK) raClose();
+                    else if (sc == SDL_SCANCODE_BACKSPACE && raField <= 1)
+                    {
+                        std::string& f = raField == 0 ? raUser : raPass;
+                        if (!f.empty()) f.pop_back();
+                        raBuild();
+                    }
+                    else if (sc == SDL_SCANCODE_RETURN || sc == SDL_SCANCODE_KP_ENTER)
+                    {
+                        if (raField == 0 && !raUser.empty()) { raField = 1; raMenu.selected = 1; raBuild(); }
+                        else raSubmit();
+                    }
+                    else if (sc == SDL_SCANCODE_TAB || sc == SDL_SCANCODE_DOWN || sc == SDL_SCANCODE_UP)
+                    {
+                        raMenu.selected = (raMenu.selected + (sc == SDL_SCANCODE_UP ? 3 : 1)) % 4;
+                        if (raMenu.selected <= 1) raField = raMenu.selected;
+                        raBuild();
+                    }
+                }
+                else if (e.type == SDL_CONTROLLERBUTTONDOWN)
+                {
+                    const int b = e.cbutton.button;
+                    if (b == SDL_CONTROLLER_BUTTON_B || b == SDL_CONTROLLER_BUTTON_BACK) raClose();
+                    else if (b == SDL_CONTROLLER_BUTTON_A || b == SDL_CONTROLLER_BUTTON_START) raActivate(raMenu.selected);
+                    else if (b == SDL_CONTROLLER_BUTTON_DPAD_UP || b == SDL_CONTROLLER_BUTTON_DPAD_DOWN)
+                    {
+                        raMenu.selected = (raMenu.selected + (b == SDL_CONTROLLER_BUTTON_DPAD_UP ? 3 : 1)) % 4;
+                        if (raMenu.selected <= 1) raField = raMenu.selected;
+                        raBuild();
+                    }
+                }
+                else if (e.type == SDL_MOUSEBUTTONUP && e.button.button == SDL_BUTTON_LEFT)
+                {
+                    int ww = 1, wh = 1;
+                    SDL_GetWindowSize(window, &ww, &wh);
+                    const int row = raMenu.ItemAt(e.button.x * canvas.w / std::max(1, ww), e.button.y * canvas.h / std::max(1, wh));
+                    if (row >= 0)
+                    {
+                        raMenu.selected = row;
+                        raActivate(row);
+                        if (raOpen && row <= 1) SDL_StartTextInput(); // (a phone's keyboard, again)
+                    }
+                }
+                else if (e.type == SDL_CONTROLLERDEVICEADDED || e.type == SDL_CONTROLLERDEVICEREMOVED || e.type == SDL_JOYDEVICEADDED ||
+                         e.type == SDL_JOYDEVICEREMOVED || e.type == SDL_WINDOWEVENT)
+                    goto normal;
+                any = SDL_PollEvent(&e);
+                continue;
+            }
             // (KEYS AND BUTTONS takes the keys and buttons while it is up.)
             if (keysOpen && e.type != SDL_QUIT)
             {
@@ -1084,7 +1284,14 @@ int PickGame(Folders& fo, std::vector<Launcher::Game>& games, int selected, bool
 #endif
         if (guide)
         {
+            raPoll();
+            for (Launcher::Setting& it : page.items)
+                if (it.key && !strcmp(it.key, "!ra_login") && !it.values.empty()) it.values[0].second = raAccountShown();
             page.Draw(canvas, pageHint, theme);
+            if (raOpen)
+                raMenu.Draw(canvas, "RETROACHIEVEMENTS: LOG IN",
+                            raField == 0 ? "TYPE YOUR USER NAME, THEN ENTER" : raField == 1 ? "TYPE YOUR PASSWORD, THEN ENTER" : "ENTER: LOG IN   ESC: CANCEL",
+                            raNote);
             if (keysOpen)
             {
                 std::string kh = keysCapture >= 0 ? (keysKeyboard ? "ESC: LEAVE IT AS IT WAS" : "OR WAIT 5 SECONDS: AS IT WAS")

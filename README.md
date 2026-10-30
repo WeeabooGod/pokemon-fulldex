@@ -79,7 +79,9 @@ every setting: a phone and the Switch are always full screen, for one.
 Earn [RetroAchievements](https://retroachievements.org) as you play, on every platform: in the
 pause menu, **RETROACHIEVEMENTS**, turn it ON and **LOG IN** with your RetroAchievements
 account (a free one from their website). Your password goes to RetroAchievements once and is
-not kept: the program keeps only the sign-in they send back. Unlocks pop up as you play.
+not kept: the program keeps only the sign-in they send back. Unlocks pop up as you play. On a
+PC, a phone, a Mac or an iPhone you can also do this before playing, in the game list's
+**SETTINGS > RETROACHIEVEMENTS**.
 
 - **Casual mode only:** save states, fast forward and cheats still work.
 - Achievements are paused while a cheat or OTHER VERSION POKEMON is on, and come back when

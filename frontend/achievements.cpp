@@ -13,6 +13,7 @@
 #include "thirdparty/rcheevos/include/rc_client.h"
 #include "thirdparty/rcheevos/include/rc_consoles.h"
 #include "thirdparty/rcheevos/include/rc_hash.h"
+#include "thirdparty/rcheevos/include/rc_api_user.h"
 
 namespace Achievements
 {
@@ -454,6 +455,53 @@ bool PopMessage(std::string& message)
     message = std::move(g_messages.front());
     g_messages.pop_front();
     return true;
+}
+
+bool LoginForToken(const std::string& user, const std::string& password, const std::string& product,
+                   std::string& outUser, std::string& outToken, std::string& error)
+{
+    if (user.empty() || password.empty())
+    {
+        error = "USER NAME AND PASSWORD NEEDED";
+        return false;
+    }
+    rc_api_login_request_t params = {};
+    params.username = user.c_str();
+    params.password = password.c_str();
+    rc_api_request_t request;
+    if (rc_api_init_login_request(&request, &params) != RC_OK)
+    {
+        error = "COULD NOT MAKE THE REQUEST";
+        return false;
+    }
+    int status = 0;
+    std::string body;
+    const bool sent = HttpPost(request.url, request.post_data ? request.post_data : "", request.content_type ? request.content_type : "",
+                               product + " (" + SystemName() + ")", status, body, error);
+    rc_api_destroy_request(&request);
+    if (!sent)
+    {
+        if (error.empty()) error = "NO CONNECTION";
+        return false;
+    }
+    rc_api_server_response_t answer = {};
+    answer.body = body.c_str();
+    answer.body_length = body.size();
+    answer.http_status_code = status;
+    rc_api_login_response_t response = {};
+    const int rc = rc_api_process_login_server_response(&response, &answer);
+    const bool ok = rc == RC_OK && response.response.succeeded && response.api_token && *response.api_token;
+    if (ok)
+    {
+        outUser = response.username ? response.username : user;
+        outToken = response.api_token;
+    }
+    else
+        error = response.response.error_message && *response.response.error_message ? response.response.error_message
+              : status ? "THE SERVER SAID NO (" + std::to_string(status) + ")" : "NO ANSWER";
+    rc_api_destroy_login_response(&response);
+    fprintf(stderr, "[achievements] login from the game list: %s\n", ok ? "done" : error.c_str());
+    return ok;
 }
 
 void Stop()

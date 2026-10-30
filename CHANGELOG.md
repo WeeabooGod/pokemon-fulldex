@@ -2,6 +2,9 @@
 
 ## Unreleased
 
+- **RetroAchievements from the game list too** (PC, Android, Mac, iPhone and iPad): SETTINGS >
+  RETROACHIEVEMENTS turns it on and LOGS IN (or out) before you start a game; the games use the
+  same account. The pause menu's RETROACHIEVEMENTS is still there.
 - **The game list's own look: GAME LIST on its settings page.** COLOUR changes its lines, the frame
   round the chosen game and the tabs (red, blue, green, purple, gold, pink or teal), and the pause
   menu's colours in the games too (BLUE is the pause menu as it was). BACKGROUND:
