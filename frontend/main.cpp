@@ -1326,6 +1326,7 @@ struct Settings
     bool ffLowRes = true;
     // VOLUME: the game's sound and music, 0 (off) to 100 in tens.
     int volume = 100;
+    std::string listColour, listBackground; // (GAME LIST: COLOUR, BACKGROUND)
     bool cpuBoost = true; // Switch only: the processor's boost mode (see SwitchPlatform)
     bool jit = true;      // Switch, games that are not recompiled: melonDS's JIT (read at start-up)
     bool fastMem = true;  // ... and its fast memory (also read at start-up)
@@ -1395,6 +1396,10 @@ struct Settings
             else if (k == "pad_touch") padTouch = v == "1";
             else if (k == "show_fps") showFps = v == "1";
             else if (k == "volume") volume = std::clamp(atoi(v.c_str()) / 10 * 10, 0, 100);
+            // (The game list's look, GAME LIST: kept here so saving does not drop them; COLOUR is the
+            // pause menu's colour too.)
+            else if (k == "list_colour") { listColour = v; Menu::Accent = AccentNamed(v); }
+            else if (k == "list_background") listBackground = v;
             else if (k == "ff_low_res") ffLowRes = v == "1";
             else if (k == "start_button") startMenu = v != "ds";
             else if (k == "cpu_boost") cpuBoost = v == "1";
@@ -1443,6 +1448,8 @@ struct Settings
         f << "show_fps=" << (showFps ? 1 : 0) << "\n";
         f << "ff_low_res=" << (ffLowRes ? 1 : 0) << "\n";
         f << "volume=" << volume << "\n";
+        if (!listColour.empty()) f << "list_colour=" << listColour << "\n";
+        if (!listBackground.empty()) f << "list_background=" << listBackground << "\n";
         f << "start_button=" << (startMenu ? "menu" : "ds") << "\n";
         f << "battle_buttons=" << (battleButtons == 0 ? "corner" : battleButtons == 2 ? "panel" : "strip") << "\n";
         controls.Save(f);

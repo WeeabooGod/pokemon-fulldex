@@ -91,8 +91,8 @@ not kept: the program keeps only the sign-in they send back. Unlocks pop up as y
 
 **SETTINGS > GAME LIST** in the game list:
 
-- **COLOUR:** its lines, the frame round the chosen game and the tabs: red, blue, green,
-  purple, gold, pink or teal.
+- **COLOUR:** its lines, the frame round the chosen game and the tabs, and the pause menu's
+  colours in the games: red, blue, green, purple, gold, pink or teal.
 - **BACKGROUND:** PLAIN, or YOUR PICTURE: a picture of yours behind the games, darkened so the
   names stay readable. Name it `background.jpg` or `background.png` and put it beside your
   `saves` folder (on the Switch: in `/switch/pokemon-ds-wide/`, with the saves; on Android: in

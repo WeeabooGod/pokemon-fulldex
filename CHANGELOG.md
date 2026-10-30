@@ -3,7 +3,8 @@
 ## Unreleased
 
 - **The game list's own look: GAME LIST on its settings page.** COLOUR changes its lines, the frame
-  round the chosen game and the tabs (red, blue, green, purple, gold, pink or teal). BACKGROUND:
+  round the chosen game and the tabs (red, blue, green, purple, gold, pink or teal), and the pause
+  menu's colours in the games too (BLUE is the pause menu as it was). BACKGROUND:
   YOUR PICTURE shows a picture of yours behind the games, darkened so the names stay readable: name
   it `background.jpg` or `background.png` and put it beside your `saves` folder (on the Switch, in
   `/switch/pokemon-ds-wide/` with the saves). Best at 1920 x 1080; any size fills the screen.

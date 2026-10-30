@@ -427,12 +427,7 @@ struct Background
 inline Theme ThemeNamed(const std::string& colour)
 {
     Theme t;
-    static const struct { const char* name; uint32_t argb; } colours[] = {
-        { "red", 0xFFE0242C }, { "blue", 0xFF2A7BE0 }, { "green", 0xFF2EB85C }, { "purple", 0xFF9B4DE0 },
-        { "gold", 0xFFE0A82C }, { "pink", 0xFFE0479A }, { "teal", 0xFF1FB5A8 },
-    };
-    for (const auto& c : colours)
-        if (colour == c.name) t.bandLine = t.frame = t.subSel = c.argb;
+    t.bandLine = t.frame = t.subSel = AccentNamed(colour); // (ui.h; red when not set)
     return t;
 }
 

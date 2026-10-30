@@ -136,6 +136,19 @@ struct Canvas
 };
 
 // Button presses the menu understands, edge-triggered.
+// The accent colours of COLOUR (the game list's settings, GAME LIST): the game list's lines and
+// frame (launcher.h, ThemeNamed) and the pause menu's chosen row, its box and text shaded from it.
+inline uint32_t AccentNamed(const std::string& name)
+{
+    static const struct { const char* name; uint32_t argb; } colours[] = {
+        { "red", 0xFFE0242C }, { "blue", 0xFF2A7BE0 }, { "green", 0xFF2EB85C }, { "purple", 0xFF9B4DE0 },
+        { "gold", 0xFFE0A82C }, { "pink", 0xFFE0479A }, { "teal", 0xFF1FB5A8 },
+    };
+    for (const auto& c : colours)
+        if (name == c.name) return c.argb;
+    return colours[0].argb;
+}
+
 struct MenuInput
 {
     bool up = false, down = false, left = false, right = false, accept = false, back = false;
@@ -206,8 +219,23 @@ struct Menu
 
     // note: a few lines of text in a strip under the box (CHEATS: what the database says about
     // the chosen cheat), wrapped to the box's width.
+    // The chosen row's colour (COLOUR, AccentNamed); the box, text and bars are shaded from it.
+    static inline uint32_t Accent = 0xFFE0242C;
+
     void Draw(Canvas& c, const std::string& title, const std::string& hint, const std::string& note = "") const
     {
+        // (Each channel of the accent c: f(c) per part. With blue, 0xFF3D6FD1, it is the menu as
+        // it was: the box 0x1C2A44, the text 0xC8D0E0, the hints 0x8FA0C0.)
+        auto shade = [](uint32_t a, auto f) {
+            const int r = f((int)(a >> 16 & 0xFF)), g = f((int)(a >> 8 & 0xFF)), b = f((int)(a & 0xFF));
+            return 0xFF000000u | (uint32_t)std::clamp(r, 0, 255) << 16 | (uint32_t)std::clamp(g, 0, 255) << 8 | (uint32_t)std::clamp(b, 0, 255);
+        };
+        const uint32_t boxCol = shade(Accent, [](int v) { return v * 30 / 100; });
+        const uint32_t noteBox = shade(Accent, [](int v) { return v * 22 / 100; });
+        const uint32_t textCol = shade(Accent, [](int v) { return 180 + v * 17 / 100; });
+        const uint32_t hintCol = shade(Accent, [](int v) { return 110 + v * 35 / 100; });
+        const uint32_t barOffSel = shade(Accent, [](int v) { return v + (255 - v) * 3 / 10; });
+        const uint32_t barOff = shade(Accent, [](int v) { return v / 2; });
         int scale = c.h / 240;
         if (scale < 1) scale = 1;
         int lineH = 11 * scale;
@@ -256,18 +284,18 @@ struct Menu
 
         c.Fill(0, 0, c.w, c.h, 0xA0000000);
         c.Fill(bx - scale, by - scale, boxW + 2 * scale, boxH + 2 * scale, 0xFFE8E8E8);
-        c.Fill(bx, by, boxW, boxH, 0xFF1C2A44);
+        c.Fill(bx, by, boxW, boxH, boxCol);
         if (hasTitle) c.Text(bx + (boxW - Canvas::TextWidth(title, scale)) / 2, by + 3 * scale, title, scale, 0xFFFFD75E);
 
         int y = by + (hasTitle ? lineH : 0) + 5 * scale;
         // (Marks at the box's right edge where rows are scrolled out of view, above or below.)
-        if (scroll > 0) c.Text(bx + boxW - 8 * scale, y - lineH + 2 * scale, "+", scale, 0xFF8FA0C0);
-        if (scroll + shown < (int)items.size()) c.Text(bx + boxW - 8 * scale, y + shown * lineH - 2 * scale, "+", scale, 0xFF8FA0C0);
+        if (scroll > 0) c.Text(bx + boxW - 8 * scale, y - lineH + 2 * scale, "+", scale, hintCol);
+        if (scroll + shown < (int)items.size()) c.Text(bx + boxW - 8 * scale, y + shown * lineH - 2 * scale, "+", scale, hintCol);
         for (int i = scroll; i < scroll + shown; i++)
         {
             bool sel = i == selected;
-            if (sel) c.Fill(bx + 2 * scale, y - 2 * scale, boxW - 4 * scale, lineH, 0xFF3D6FD1);
-            uint32_t col = sel ? 0xFFFFFFFF : 0xFFC8D0E0;
+            if (sel) c.Fill(bx + 2 * scale, y - 2 * scale, boxW - 4 * scale, lineH, Accent);
+            uint32_t col = sel ? 0xFFFFFFFF : textCol;
             c.Text(bx + 6 * scale, y, items[i].label, scale, col);
             if (!items[i].value.empty())
             {
@@ -282,19 +310,19 @@ struct Menu
                     barX = vx - 4 * scale - 10 * barStep;
                     for (int k = 0; k < 10; k++)
                         c.Fill(barX + k * barStep, y, 4 * scale, 7 * scale,
-                               k < items[i].slider ? (sel ? 0xFFFFFFFF : 0xFFC8D0E0) : (sel ? 0xFF6C8FD8 : 0xFF3A4A6A));
+                               k < items[i].slider ? (sel ? 0xFFFFFFFF : textCol) : (sel ? barOffSel : barOff));
                 }
             }
             y += lineH;
         }
-        c.Text(bx + (boxW - Canvas::TextWidth(hint, scale)) / 2, y + 4 * scale, hint, scale, 0xFF8FA0C0);
+        c.Text(bx + (boxW - Canvas::TextWidth(hint, scale)) / 2, y + 4 * scale, hint, scale, hintCol);
         if (!noteLines.empty())
         {
             const int ny = by + boxH + 3 * scale;
             c.Fill(bx - scale, ny - scale, boxW + 2 * scale, noteH + 2 * scale, 0xFFE8E8E8);
-            c.Fill(bx, ny, boxW, noteH, 0xFF142034);
+            c.Fill(bx, ny, boxW, noteH, noteBox);
             for (size_t i = 0; i < noteLines.size(); i++)
-                c.Text(bx + 6 * scale, ny + 4 * scale + (int)i * 9 * scale, noteLines[i], scale, 0xFFC8D0E0);
+                c.Text(bx + 6 * scale, ny + 4 * scale + (int)i * 9 * scale, noteLines[i], scale, textCol);
         }
     }
 };
