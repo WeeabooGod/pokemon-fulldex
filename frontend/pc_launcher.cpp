@@ -396,8 +396,10 @@ int PickGame(Folders& fo, std::vector<Launcher::Game>& games, int selected, bool
     }
     // L and R (Q and E, or a controller's shoulder buttons; a tap on a tab): the next tab, keeping
     // the chosen game if it is in it.
-    auto setTab = [&](int t) {
+    // (why: said in game.log, with the tab.)
+    auto setTab = [&](int t, const char* why) {
         tab = (t + Launcher::TABS) % Launcher::TABS;
+        fprintf(stderr, "[launcher] tab %s (%s)\n", Launcher::TabName(tab), why);
         scroll = 0;
         const Launcher::View v = view();
         if (v.SpotOf(selected) < 0) selected = Launcher::FirstIn(v);
@@ -696,7 +698,7 @@ int PickGame(Folders& fo, std::vector<Launcher::Game>& games, int selected, bool
                     if (ctl.KeyCustom(a) && ctl.key[a] == e.key.keysym.scancode) act = a;
                 if (act >= 0)
                 {
-                    if (act == Controls::L || act == Controls::R) { if (!guide) setTab(tab + (act == Controls::R ? 1 : -1)); }
+                    if (act == Controls::L || act == Controls::R) { if (!guide) setTab(tab + (act == Controls::R ? 1 : -1), "a key"); }
                     else if (act == Controls::A || act == Controls::START) { if (!e.key.repeat) choose(); }
                     else if (act == Controls::B || act == Controls::MENU) { if (guide) { if (!page.Back()) guide = false; } else quit = true; }
                     else if (act == Controls::Y) toggleGuide();
@@ -714,8 +716,8 @@ int PickGame(Folders& fo, std::vector<Launcher::Game>& games, int selected, bool
                 case SDLK_ESCAPE: case SDLK_AC_BACK: if (guide) { if (!page.Back()) guide = false; } else quit = true; break;
                 case SDLK_h: case SDLK_F1: toggleGuide(); break;
                 case SDLK_o: OpenFolder(fo.roms); break;
-                case SDLK_q: case SDLK_PAGEUP: if (!guide) setTab(tab - 1); break;
-                case SDLK_e: case SDLK_PAGEDOWN: case SDLK_TAB: if (!guide) setTab(tab + 1); break;
+                case SDLK_q: case SDLK_PAGEUP: if (!guide) setTab(tab - 1, "a key"); break;
+                case SDLK_e: case SDLK_PAGEDOWN: case SDLK_TAB: if (!guide) setTab(tab + 1, "a key"); break;
                 case SDLK_F11:
                     fullscreen = !fullscreen;
                     SDL_SetWindowFullscreen(window, fullscreen ? SDL_WINDOW_FULLSCREEN_DESKTOP : 0);
@@ -758,7 +760,12 @@ int PickGame(Folders& fo, std::vector<Launcher::Game>& games, int selected, bool
                               : in == Controls::IN_B || in == Controls::IN_BACK ? Controls::B
                               : in == Controls::IN_Y ? Controls::Y
                               : in == Controls::IN_LB ? Controls::L : in == Controls::IN_RB ? Controls::R : -1;
-                if (act == Controls::L || act == Controls::R) { if (!guide) setTab(tab + (act == Controls::R ? 1 : -1)); }
+                if (act == Controls::L || act == Controls::R)
+                {
+                    char why[64];
+                    snprintf(why, sizeof why, "a controller's input %d, event %u", in, (unsigned)e.type);
+                    if (!guide) setTab(tab + (act == Controls::R ? 1 : -1), why);
+                }
                 else if (act == Controls::A || act == Controls::START) choose();
                 else if (act == Controls::B || act == Controls::SELECT) { if (guide) { if (!page.Back()) guide = false; } else quit = true; }
                 else if (act == Controls::Y) toggleGuide();
@@ -829,7 +836,7 @@ int PickGame(Folders& fo, std::vector<Launcher::Game>& games, int selected, bool
                     const int t = Launcher::TabAt(canvas, mx, my);
                     if (t >= 0)
                     {
-                        if (t != tab) setTab(t);
+                        if (t != tab) setTab(t, "a tap");
                         break;
                     }
                 }
