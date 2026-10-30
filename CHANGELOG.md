@@ -15,7 +15,7 @@
   (achievements are paused while a cheat or OTHER VERSION POKEMON is on).
 - **The game list opens on ALL, with a heading for each console (DS, GBA, 3DS)**, and tabs along
   the top to show one console's games: L and R on the Switch, Q and E (or a controller's shoulder
-  buttons) on a PC, or a tap on the tab on a phone. There are no 3DS games yet: its tab says so.
+  buttons) on a PC, or a tap on the tab on a phone. The 3DS tab has Pokémon Omega Ruby, COMING SOON.
   On a phone the list scrolls with a finger (on a PC, with the mouse held down too).
 - **GBA games: Pokémon Emerald, FireRed, LeafGreen and Ultra Violet** in the same list, in
   widescreen at 60 fps (Pokémon GBA Widescreen, built in). Put the ROMs in the same `roms` folder

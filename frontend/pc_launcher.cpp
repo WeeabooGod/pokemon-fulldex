@@ -297,6 +297,22 @@ std::vector<Launcher::Game> FindGames(const Folders& fo, std::map<std::string, s
         fprintf(stderr, "[launcher] GBA games: %zu in %s\n", gbaSeen, fo.roms.c_str());
     }
 #endif
+    Launcher::AddComingSoon(games);
+    {
+        Launcher::Game& g = games.back();
+        auto it = artCache.find("coming-soon:" + g.code);
+        if (it == artCache.end())
+        {
+            Launcher::FindArt(g, fo.art);
+#ifdef SSR_PC_ART
+            size_t size = 0;
+            if (g.art.empty())
+                if (const unsigned char* data = BuiltInArt(g.code.c_str(), size)) Launcher::LoadArt(data, size, g.art);
+#endif
+            it = artCache.emplace("coming-soon:" + g.code, g.art).first;
+        }
+        g.art = it->second;
+    }
     Launcher::Sort(games);
     return games;
 }
@@ -580,7 +596,8 @@ int PickGame(Folders& fo, std::vector<Launcher::Game>& games, int selected, bool
             quit = true;
         }
         else
-            note = games[selected].known ? "THIS DOWNLOAD DOES NOT HAVE THIS GAME" : "THIS GAME IS NOT ONE THAT THIS PLAYS";
+            note = games[selected].comingSoon ? games[selected].name + ": COMING SOON"
+                 : games[selected].known ? "THIS DOWNLOAD DOES NOT HAVE THIS GAME" : "THIS GAME IS NOT ONE THAT THIS PLAYS";
     };
     auto move = [&](int dir) { // 1 left, 2 right, 3 up, 4 down
         if (guide)

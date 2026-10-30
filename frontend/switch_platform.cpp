@@ -430,7 +430,8 @@ int PickGame(const std::vector<Launcher::Game>& games, int selected, const std::
                     result = selected;
                     break;
                 }
-                note = games[selected].known ? "THIS DOWNLOAD DOES NOT HAVE THIS GAME" : "THIS GAME IS NOT ONE THAT THIS PLAYS";
+                note = games[selected].comingSoon ? games[selected].name + ": COMING SOON"
+                     : games[selected].known ? "THIS DOWNLOAD DOES NOT HAVE THIS GAME" : "THIS GAME IS NOT ONE THAT THIS PLAYS";
             }
             if (down & (HidNpadButton_Plus | (ctl.PadCustom() ? action(Controls::B) : (u64)HidNpadButton_B))) break;
         }
@@ -525,6 +526,7 @@ std::vector<Launcher::Game> FindGames(const std::string& dir, bool& ownFolder)
     }
 #endif
 #endif
+    Launcher::AddComingSoon(games);
     Launcher::Sort(games);
     // The same game in two folders (two ROMs, two saves): each says where it is.
     for (size_t i = 0; i < games.size(); i++)

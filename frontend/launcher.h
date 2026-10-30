@@ -50,10 +50,25 @@ struct Game
     std::vector<uint32_t> art;
     // Set when the same game is also in another folder: this one's folder, shown under it.
     std::string where;
+    // A game on its way (AddComingSoon): its tile says so and it cannot be played.
+    bool comingSoon = false;
 };
 
 // The size the larger pictures are kept at (the tiles of the list at 720 lines).
 constexpr int Art = 224;
+
+// Games on their way, in their console's section with COMING SOON over the picture: Pokemon
+// Omega Ruby on the 3DS (its picture as any game's: icons/ECRA.jpg, or SSR_PC_ART's ECRA.jpg).
+inline void AddComingSoon(std::vector<Game>& games)
+{
+    Game g;
+    g.platform = N3DS;
+    g.code = "ECRA";
+    g.rom = "coming-soon:ECRA"; // (never a file: so never the last game played, nor started)
+    g.name = "POKEMON OMEGA RUBY";
+    g.comingSoon = true;
+    games.push_back(std::move(g));
+}
 
 // The games this program plays, in the order the list shows them.
 struct KnownGame
@@ -609,16 +624,30 @@ inline void Draw(Canvas& c, const std::vector<Game>& games, int tab, int selecte
                 for (int px = 0; px < 32; px++)
                     if (g.icon[py * 32 + px] >> 24) c.Fill(x + o + px * is, y + o + py * is, is, is, g.icon[py * 32 + px]);
         }
+        // COMING SOON across the picture of a game on its way, the picture darkened.
+        if (g.comingSoon)
+        {
+            for (int py = 0; py < tile; py++)
+                for (int px = 0; px < tile; px++)
+                {
+                    uint32_t& p = c.px[(size_t)(y + py) * c.w + x + px];
+                    p = 0xFF000000u | ((p >> 1) & 0x7F7F7F);
+                }
+            const std::string soon = "COMING SOON";
+            const int bs = Canvas::TextWidth(soon, s) + 8 * s <= tile ? s : std::max(1, s - 1);
+            c.Fill(x, y + tile / 2 - 8 * bs, tile, 16 * bs, th.band);
+            c.Text(x + (tile - Canvas::TextWidth(soon, bs)) / 2, y + tile / 2 - 4 * bs, soon, bs, th.title);
+        }
         // The name (shortened: POKEMON is the same for all) and the save.
         std::string name = g.name;
         if (name.rfind("POKEMON ", 0) == 0) name = name.substr(8);
         const int ns = Canvas::TextWidth(name, s) <= tile ? s : std::max(1, s - 1);
         c.Text(x + (tile - Canvas::TextWidth(name, ns)) / 2, y + tile + 3 * s, name, ns, sel ? th.nameSel : th.name);
         if (sel && th.selBar) c.Fill(x + tile / 4, y + tile + 19 * s, tile / 2, s, th.selBar);
-        std::string sub = !g.known ? "NOT PLAYABLE" : g.hasSave ? "SAVE FOUND" : "NEW GAME";
+        std::string sub = g.comingSoon ? "COMING SOON" : !g.known ? "NOT PLAYABLE" : g.hasSave ? "SAVE FOUND" : "NEW GAME";
         if (!g.where.empty() && g.known) sub = (g.hasSave ? "SAVE " : "NEW ") + g.where; // e.g. SAVE IN BLACK2
         const int ss = std::max(1, s * 2 / 3);
-        c.Text(x + (tile - Canvas::TextWidth(sub, ss)) / 2, y + tile + 12 * s, sub, ss, !g.known ? th.bad : sel ? th.subSel : th.sub);
+        c.Text(x + (tile - Canvas::TextWidth(sub, ss)) / 2, y + tile + 12 * s, sub, ss, !g.known && !g.comingSoon ? th.bad : sel ? th.subSel : th.sub);
     }
     // More games below the ones shown. (None drawn for above: under the tabs it looked like one
     // of their underlines, and the cut tiles at the top say it already.)
