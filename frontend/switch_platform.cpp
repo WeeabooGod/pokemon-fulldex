@@ -202,6 +202,12 @@ int PickGame(const std::vector<Launcher::Game>& games, int selected, const std::
     padInitializeDefault(&pad);
     Canvas canvas;
     canvas.Resize(1280, 720);
+    // The touch screen (handheld): SETTINGS at the right of the title band, BACK at its left in
+    // the settings, as on a PC or a phone (pc_launcher.cpp). A tap counts as the finger lifts.
+    hidInitializeTouchScreen();
+    bool touching = false;
+    int touchX = 0, touchY = 0;
+    bool onSettings = false; // SETTINGS chosen with the D-pad (up from the first row of games)
     // The tab shown (ALL first, the list opens on it), how far down it is scrolled; selected: a
     // game in that tab, or -1 when it has none (Launcher::MakeView, Step).
     int tab = 0, scroll = 0, held = 0, result = -1;
@@ -276,6 +282,25 @@ int PickGame(const std::vector<Launcher::Game>& games, int selected, const std::
         }
         padUpdate(&pad);
         const u64 down = padGetButtonsDown(&pad), now = padGetButtons(&pad);
+        int tapX = -1, tapY = -1;
+        {
+            HidTouchScreenState ts = {};
+            if (hidGetTouchScreenStates(&ts, 1) && ts.count > 0)
+            {
+                touching = true;
+                touchX = (int)ts.touches[0].x;
+                touchY = (int)ts.touches[0].y;
+            }
+            else if (touching)
+            {
+                touching = false;
+                tapX = touchX;
+                tapY = touchY;
+            }
+        }
+        const int bandH = 22 * std::max(1, canvas.h / 240);
+        const bool tapSettings = tapY >= 0 && tapY < bandH && tapX > canvas.w * 3 / 4;
+        const bool tapBack = tapY >= 0 && tapY < bandH && tapX < canvas.w / 4;
         // The arrows (or a stick) move through the grid, and keep moving while held.
         const bool up = now & HidNpadButton_AnyUp, dn = now & HidNpadButton_AnyDown;
         const bool lf = now & HidNpadButton_AnyLeft, rt = now & HidNpadButton_AnyRight;
@@ -331,13 +356,15 @@ int PickGame(const std::vector<Launcher::Game>& games, int selected, const std::
             if (step && (lf || rt)) change(lf ? -1 : 1);
             if (down & HidNpadButton_A) change(1);
             // (B: from a group back to the groups first; Y closes the page.)
-            if ((down & HidNpadButton_B) && !page.Back()) guide = false;
+            if (((down & HidNpadButton_B) || tapBack) && !page.Back()) guide = false;
             if (down & HidNpadButton_Y) guide = false;
             if (down & HidNpadButton_Plus) break;
         }
-        else if (down & (ctl.PadCustom() ? action(Controls::Y) : (u64)HidNpadButton_Y))
+        else if ((down & (ctl.PadCustom() ? action(Controls::Y) : (u64)HidNpadButton_Y)) || tapSettings ||
+                 (onSettings && (down & (ctl.PadCustom() ? action(Controls::A) : (u64)HidNpadButton_A))))
         {
             guide = true;
+            onSettings = false;
             page.Open(cfgPath);
             held = 0;
         }
@@ -357,16 +384,22 @@ int PickGame(const std::vector<Launcher::Game>& games, int selected, const std::
             }
             const bool step = held == 1 || (held > 20 && held % 6 == 0);
             const int dir = !step ? 0 : lf ? 1 : rt ? 2 : up ? 3 : dn ? 4 : 0;
-            if (dir)
+            if (dir && onSettings)
+            {
+                // (Down from SETTINGS: back to the games.)
+                if (dir == 4 && selected >= 0) onSettings = false;
+            }
+            else if (dir)
             {
                 const int to = Launcher::Step(view(), selected, dir);
-                if (to >= 0 && to != selected)
+                if (to < 0 && dir == 3) onSettings = true; // (up from the first row)
+                else if (to >= 0 && to != selected)
                 {
                     selected = to;
                     note.clear();
                 }
             }
-            if (selected >= 0 && (down & (ctl.PadCustom() ? action(Controls::A) : (u64)HidNpadButton_A)))
+            if (!onSettings && selected >= 0 && (down & (ctl.PadCustom() ? action(Controls::A) : (u64)HidNpadButton_A)))
             {
                 if (Playable(games[selected]))
                 {
@@ -377,10 +410,26 @@ int PickGame(const std::vector<Launcher::Game>& games, int selected, const std::
             }
             if (down & (HidNpadButton_Plus | (ctl.PadCustom() ? action(Controls::B) : (u64)HidNpadButton_B))) break;
         }
-        if (guide) page.Draw(canvas, page.group < 0 ? "UP / DOWN: CHOOSE    A: OPEN    B: BACK"
-                                                    : "UP / DOWN: CHOOSE    LEFT / RIGHT / A: CHANGE    B: BACK");
-        if (guide && keysOpen) keysMenu.Draw(canvas, "KEYS AND BUTTONS", keysCapture >= 0 ? "OR WAIT 5 SECONDS: AS IT WAS" : "A: CHANGE   B: BACK");
-        else Launcher::Draw(canvas, games, tab, selected, scroll, note);
+        // (The game list only when the settings page is not open: drawn over it, the page was
+        // hidden while it took the buttons, and the list seemed frozen.)
+        if (guide)
+        {
+            page.Draw(canvas, page.group < 0 ? "UP / DOWN: CHOOSE    A: OPEN    B: BACK"
+                                             : "UP / DOWN: CHOOSE    LEFT / RIGHT / A: CHANGE    B: BACK");
+            if (keysOpen) keysMenu.Draw(canvas, "KEYS AND BUTTONS", keysCapture >= 0 ? "OR WAIT 5 SECONDS: AS IT WAS" : "A: CHANGE   B: BACK");
+        }
+        else Launcher::Draw(canvas, games, tab, onSettings ? -1 : selected, scroll, note);
+        {
+            // The title band's buttons, as pc_launcher.cpp draws them (the chosen one framed).
+            const int s = std::max(1, canvas.h / 240);
+            const Launcher::Theme th;
+            auto button = [&](int x, const char* text, bool on) {
+                if (on) canvas.Fill(x - 3 * s, 4 * s, Canvas::TextWidth(text, s) + 5 * s, 13 * s, th.frame);
+                canvas.Text(x, 7 * s, text, s, on ? th.title : th.hint);
+            };
+            if (guide && !keysOpen) button(8 * s, "< BACK", false);
+            else if (!guide) button(canvas.w - 8 * s - Canvas::TextWidth("SETTINGS", s), "SETTINGS", onSettings);
+        }
         u32 stride;
         u32* out = (u32*)framebufferBegin(&fb, &stride);
         for (int y = 0; y < 720; y++)

@@ -47,6 +47,17 @@
   the paving beside it has no jagged step. Walking up the stairs, the cliff on the right no longer
   flickers as a stretched slab and the tree beside it no longer smears sideways: near things
   seen from above are no longer taken for the distance.
+- **Black, White, Black 2 and White 2: no flicker at the sides of the wide view as you walk.** On
+  the stairs up to Aspertia City's lookout the ground, a tree and the wall on the right flickered:
+  near things were stretched out to the view's edge in some frames and not others. Only the
+  distance (sky, clouds, haze, mountains) is now continued to the edges, and what continues it
+  changes only once it has held for a few frames. From the lookout, the mountains on the left no
+  longer stretch as you walk from side to side (their picture repeats on instead), and the white
+  mountain on the right no longer stops in a slanted cut with the sky beyond it.
+- **Switch: the game list's settings no longer seem to freeze.** Y opened the settings page, but
+  the game list was drawn over it, so the buttons went to a page you could not see. The list also
+  has a SETTINGS button at the top right, as on a PC or a phone: tap it in handheld mode, or press
+  up from the top row of games and then A; < BACK at the top left of the settings goes back.
 - **Widescreen: things no longer vanish while still on screen.** Black 2's rocks and lamp posts at
   the bottom of the stairs up to Aspertia City's lookout disappeared a few pixels before they had
   scrolled out of the picture, and appeared late; the game now draws what is near the picture's
