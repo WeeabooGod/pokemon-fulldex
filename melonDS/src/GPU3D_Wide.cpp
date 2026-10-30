@@ -883,9 +883,14 @@ struct WideAccess
     // darker block in the corner, and the mountains continued there in their own colours.
     // (Spread thin: the leaves of Castelia City's trees are see-through and as far, and came
     // apart in slivers continued.)
-    static bool IsLayer(const Polygon* poly, s32 w1, s32 farW)
+    // (A far one is also about as far at every corner, within a sixth: a panel of the sky or a
+    // line of mountains faces the camera. Looking down from above, as on the stairs to
+    // Aspertia's lookout, everything is about as far as the furthest thing, and the fence round a
+    // planter there, running from near to far, counted as a layer of the distance: continued
+    // to the view's edge, it ran on down it as a long rail.)
+    static bool IsLayer(const Polygon* poly, s32 w0, s32 w1, s32 farW)
     {
-        if ((s64)w1 * 10 >= (s64)farW * 9) return true;
+        if ((s64)w1 * 10 >= (s64)farW * 9) return (s64)w0 * 6 >= (s64)w1 * 5;
         if (!poly->Translucent || (s64)w1 * 2 < farW) return false;
         if (!((poly->TexParam >> 26) & 7)) return true;
         s32 x0 = INT32_MAX, x1 = INT32_MIN, y0 = INT32_MAX, y1 = INT32_MIN, s0 = INT32_MAX, s1 = INT32_MIN, t0 = INT32_MAX, t1 = INT32_MIN;
@@ -977,7 +982,7 @@ struct WideAccess
             // pixels of 1280 short (more than a twelfth), so they and the sky's plain colour
             // behind them stopped in a hard edge while the haze and clouds in front, ending
             // nearer the edge, were continued over nothing: a darker block in the corner.
-            const bool backdrop = IsLayer(list[i], b.w1, farW);
+            const bool backdrop = IsLayer(list[i], b.w0, b.w1, farW);
             const s32 reach = backdrop ? full / 2 : gap;
             // (A layer whose end is slanted, reaching the view's edge at its top and ending short of
             // it at its bottom, or the other way round, counts as ending at its shorter corner:
@@ -995,7 +1000,7 @@ struct WideAccess
             for (u32 i = 0; i < count; i++)
             {
                 const Box& b = boxes[i];
-                if (b.x1 < b.x0 || !IsLayer(list[i], b.w1, farW)) continue;
+                if (b.x1 < b.x0 || !IsLayer(list[i], b.w0, b.w1, farW)) continue;
                 fprintf(stderr, "[extend] backdrop %u: x %d-%d y %d-%d w %d-%d side %d translucent %d alpha %u tex %08x verts %u\n", i,
                     b.x0, b.x1, b.y0, b.y1, b.w0, b.w1, b.side, list[i]->Translucent ? 1 : 0, (list[i]->Attr >> 16) & 31,
                     list[i]->TexParam, list[i]->NumVertices);
@@ -1005,7 +1010,7 @@ struct WideAccess
         {
             const Box b = boxes[i];
             if (!b.side) continue;
-            const bool layer = IsLayer(list[i], b.w1, farW);
+            const bool layer = IsLayer(list[i], b.w0, b.w1, farW);
             const bool farBox = (s64)b.w1 * 10 >= (s64)farW * 9, distant = (s64)b.w1 * 10 >= (s64)farW * 6;
             // (A layer of the backdrop is not held back by anything small beside it, less than a
             // tenth of the view wide, or anything with see-through parts (a picture with a
@@ -1202,6 +1207,27 @@ struct WideAccess
         // in Castelia City's plaza, out of the game's own view). Only the layers that end a
         // little short (a sky's panels, the haze from a lookout) are continued; anything else
         // stays as the game drew it.
+        // And a thin strip, a rail or a curb seen from above, is not continued at all when it
+        // runs down the view (its end, moved out along its sides, drew a rail on down the view),
+        // nor across it when it is nearer than the distance (the bar along its foot, without
+        // its sides, drew a rail across the street): the fence round the planter by the stairs to
+        // Aspertia's lookout, walking up them. Its thickness: twice its area over its longest
+        // stretch between two corners; thin: under a twelfth of the view running down it (the
+        // paving beside that planter is about an eighth), a twenty-fourth across it.
+        {
+            double area2 = 0, longest = 0;
+            for (u32 v = 0; v < n; v++)
+            {
+                const Corner& a = c[v];
+                const Corner& b = c[(v + 1) % n];
+                area2 += (double)a.x * b.y - (double)b.x * a.y;
+                for (u32 u = v + 1; u < n; u++)
+                    longest = std::max(longest, std::hypot((double)(c[u].x - a.x), (double)(c[u].y - a.y)));
+            }
+            const double thick = longest > 0 ? std::abs(area2) / longest : 0;
+            if (steep && thick < 256 * 16 / 12.0) return;
+            if (!layer && thick < 256 * 16 / 24.0) return;
+        }
         {
             s32 x0 = INT32_MAX, x1 = INT32_MIN;
             for (u32 v = 0; v < n; v++)

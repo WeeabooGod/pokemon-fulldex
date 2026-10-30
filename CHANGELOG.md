@@ -44,7 +44,9 @@
   the view tilted up. A wedge of grass that flashed over the cliff at the top right, for a frame,
   is gone too: the far hillside was stretched past where it really ends. Below the lookout, the
   fence round the planter by the street no longer runs on across the street as a long rail, and
-  the paving beside it has no jagged step.
+  the paving beside it has no jagged step. Walking up the stairs, the cliff on the right no longer
+  flickers as a stretched slab and the tree beside it no longer smears sideways: near things
+  seen from above are no longer taken for the distance.
 - **Widescreen: things no longer vanish while still on screen.** Black 2's rocks and lamp posts at
   the bottom of the stairs up to Aspertia City's lookout disappeared a few pixels before they had
   scrolled out of the picture, and appeared late; the game now draws what is near the picture's
