@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+- **Windows: the taskbar shows the program's own icon.** A desktop shortcut to one game that was
+  pinned (Platinum's, say) took over every window of the program, the game list's included, with
+  that game's picture; the program and each game's shortcut now have their own place on the
+  taskbar (make the desktop shortcuts again, in SETTINGS, to update ones made before).
 - **No version exclusives (OTHER VERSION POKEMON in the pause menu): SoulSilver, HeartGold,
   Black, White, Black 2 and White 2.** Where the two versions' wild Pokémon differ, each encounter
   can be either version's, as often as each other, at that place's own rates and levels (Gothita

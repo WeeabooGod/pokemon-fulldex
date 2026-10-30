@@ -1019,6 +1019,9 @@ bool Start(int& argc, char**& argv)
         for (char& c : direct) c = (char)toupper((unsigned char)c);
     }
     else if (argc >= 2) return true;
+#ifdef _WIN32
+    Shortcuts::SetAppId(direct);
+#endif
     Folders fo;
 #ifdef __ANDROID__
     // The app's own folder on the shared storage (Android/data/io.github.mamesj.pokemonds/
