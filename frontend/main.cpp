@@ -1985,6 +1985,26 @@ int main(int argc, char** argv)
         // The frames keep their own pace (nextTick, 59.8 a second): one a little under the
         // screen's 60 never waits for it, with Metal's three pictures in flight.
         rendererFlags |= SDL_RENDERER_PRESENTVSYNC;
+#elif !defined(__SWITCH__) && !defined(__ANDROID__)
+        // Windows and Linux: in step with the screen too (vsync) when it shows 60 pictures a
+        // second or a multiple of that (59.94 or 60, 120, 240 Hz), the frames still at their own
+        // pace (nextTick). Handed over without, a frame came up on the screen at whichever of its
+        // refreshes followed, and while the frames' times (59.8 a second) drifted past the
+        // screen's (59.94) that was the next one for some and the one after for others: for
+        // seconds at a time a picture shown twice here and one left out there, a jolt in the
+        // motion that showed most on a patterned floor or the edges of trees as the camera
+        // moved (a 4K screen at 59.94 Hz, Black 2's stairs at Aspertia). SSR_VSYNC=0 or 1
+        // decides it instead.
+        {
+            SDL_DisplayMode mode;
+            const int display = SDL_GetWindowDisplayIndex(window);
+            int hz = display >= 0 && SDL_GetCurrentDisplayMode(display, &mode) == 0 ? mode.refresh_rate : 0;
+            const int near60 = hz > 0 ? (hz + 30) / 60 * 60 : 0;
+            bool vsync = near60 > 0 && std::abs(hz - near60) <= 1;
+            if (const char* v = getenv("SSR_VSYNC")) vsync = v[0] == '1';
+            fprintf(stderr, "[display] %d Hz: pictures handed over %s\n", hz, vsync ? "in step with the screen (vsync)" : "at their own times");
+            if (vsync) rendererFlags |= SDL_RENDERER_PRESENTVSYNC;
+        }
 #endif
         renderer = SDL_CreateRenderer(window, -1, rendererFlags);
 #ifdef SSR_GPU3D
