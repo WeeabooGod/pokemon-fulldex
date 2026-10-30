@@ -1324,6 +1324,10 @@ void Finish()
     wchar_t self[32768];
     const DWORD n = GetModuleFileNameW(nullptr, self, 32768);
     if (n == 0 || n >= 32768) return;
+    // (game.log let go first: the new program keeps it as game-previous.log, which Windows does
+    // not allow while this one still has it open, and the game's log was lost.)
+    fflush(stderr);
+    freopen("NUL", "w", stderr);
     std::wstring cmd = L"\"" + std::wstring(self) + L"\"";
     STARTUPINFOW si = {};
     si.cb = sizeof si;

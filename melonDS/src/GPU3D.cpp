@@ -2561,6 +2561,27 @@ void GPU3D::BuildInterpolatedFrame() noexcept
         WideReplay(*this, true, InterpVertexRAM.data(), InterpPolygonRAM.data(), InterpRenderPolygonRAM.data(),
             InterpNumPolygons, matched);
     InterpPending = InterpNumPolygons && matched * 2 >= frameSize;
+    // ssrecomp: why an in-between frame was left out, in game.log (the first 400; and every one
+    // with SSR_INTERP_LOG): too few polygons found in both frames.
+    if (!InterpPending)
+        InterpSkipLog("matched", (u32)matched, (u32)frameSize);
+}
+
+// ssrecomp: one line in game.log per in-between frame left out, saying why (see VBlank and
+// BuildInterpolatedFrame). A frame of 60 left without one shows as a jolt in the motion.
+void GPU3D::InterpSkipLog(const char* why, u32 a, u32 b) noexcept
+{
+    static const bool all = getenv("SSR_INTERP_LOG") != nullptr;
+    static u32 logged = 0;
+    InterpSkipped++;
+    if (!all && logged >= 400) return;
+    logged++;
+    if (!strcmp(why, "matched"))
+        fprintf(stderr, "[60fps] vblank %u: no in-between frame: %u of %u polygons found in the frame before\n", VBlankCount, a, b);
+    else if (!strcmp(why, "gap"))
+        fprintf(stderr, "[60fps] vblank %u: no in-between frame: the game's 3D frame took %u display frames, not 2\n", VBlankCount, a);
+    else
+        fprintf(stderr, "[60fps] vblank %u: no in-between frame: %s\n", VBlankCount, why);
 }
 
 void GPU3D::VBlank() noexcept
@@ -2610,6 +2631,9 @@ void GPU3D::VBlank() noexcept
                 {
                     const bool capturing = (NDS.GPU.GPU2D_A.CaptureCnt & (1u << 31)) != 0;
                     const bool interpolate = InterpolationEnabled && VBlankCount - LastFlushVBlank == 2 && !capturing;
+                    // (A game drawing at 60 frames a second needs none: a gap of 1 is not logged.)
+                    if (InterpolationEnabled && !interpolate && VBlankCount - LastFlushVBlank != 1)
+                        InterpSkipLog(capturing ? "the screen is being captured" : "gap", VBlankCount - LastFlushVBlank, 0);
                     // ssrecomp: the wide view's lists are built on a helper thread where there is
                     // one (WideListsOnHelper), started first so that they are ready by the time
                     // the in-between frame is drawn; they are built with the in-between lists
