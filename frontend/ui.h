@@ -109,12 +109,11 @@ struct Canvas
             { 0x00, 0x1F, 0x11, 0x11, 0x11, 0x1F, 0x00 },
             { 0x00, 0x04, 0x0A, 0x0A, 0x11, 0x1F, 0x00 },
             { 0x18, 0x19, 0x02, 0x04, 0x08, 0x13, 0x03 }, // % (VOLUME)
-            { 0x02, 0x1F, 0x10, 0x1E, 0x10, 0x10, 0x1F }, // \x05: E with an acute accent (POKEMON with it: POKE_ACUTE)
         };
         if (c >= 'a' && c <= 'z') c -= 32;
         if (c >= 'A' && c <= 'Z') return font[c - 'A'];
         if (c >= '0' && c <= '9') return font[26 + c - '0'];
-        static const char punct[] = ":-+./<>!()\x01\x02\x03\x04%\x05";
+        static const char punct[] = ":-+./<>!()\x01\x02\x03\x04%";
         const char* p = c ? strchr(punct, c) : nullptr;
         return p ? font[36 + (p - punct)] : nullptr;
     }
@@ -125,6 +124,14 @@ struct Canvas
     {
         for (char c : s)
         {
+            // \x05: E with an acute accent (the É of POKÉMON): a whole E, the accent above the
+            // line, two pixels slanting up to the right with a row's gap.
+            if (c == '\x05')
+            {
+                Fill(x + 3 * scale, y - 3 * scale, scale, scale, argb);
+                Fill(x + 2 * scale, y - 2 * scale, scale, scale, argb);
+                c = 'E';
+            }
             if (const uint8_t* g = Glyph(c))
                 for (int row = 0; row < 7; row++)
                     for (int col = 0; col < 5; col++)
@@ -135,7 +142,6 @@ struct Canvas
     }
 };
 
-// Button presses the menu understands, edge-triggered.
 // The accent colours of COLOUR (the game list's settings, GAME LIST): the game list's lines and
 // frame (launcher.h, ThemeNamed) and the pause menu's chosen row, its box and text shaded from it.
 inline uint32_t AccentNamed(const std::string& name)
@@ -149,6 +155,7 @@ inline uint32_t AccentNamed(const std::string& name)
     return colours[0].argb;
 }
 
+// Button presses the menu understands, edge-triggered.
 struct MenuInput
 {
     bool up = false, down = false, left = false, right = false, accept = false, back = false;
