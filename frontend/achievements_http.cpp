@@ -219,14 +219,27 @@ bool HttpPost(const std::string& url, const std::string& post, const std::string
     JNIEnv* env = (JNIEnv*)SDL_AndroidGetJNIEnv();
     if (!env) { error = "no Java"; return false; }
     if (env->PushLocalFrame(64) != 0) { env->ExceptionClear(); error = "no Java memory"; return false; }
+    std::string javaError; // (what Java said went wrong, for game.log)
     auto failed = [&]() {
         if (!env->ExceptionCheck()) return false;
+        jthrowable e = env->ExceptionOccurred();
         env->ExceptionClear();
+        jclass objClass = env->FindClass("java/lang/Object");
+        jstring text = objClass ? (jstring)env->CallObjectMethod(e, env->GetMethodID(objClass, "toString", "()Ljava/lang/String;")) : nullptr;
+        if (env->ExceptionCheck()) env->ExceptionClear();
+        else if (text)
+        {
+            const char* c = env->GetStringUTFChars(text, nullptr);
+            if (c)
+            {
+                javaError = c;
+                env->ReleaseStringUTFChars(text, c);
+            }
+        }
         return true;
     };
     auto jstr = [&](const std::string& t) { return env->NewStringUTF(t.c_str()); };
     bool ok = false;
-    error = "no connection";
     do
     {
         jclass urlClass = env->FindClass("java/net/URL");
@@ -235,7 +248,7 @@ bool HttpPost(const std::string& url, const std::string& post, const std::string
         jclass outClass = env->FindClass("java/io/OutputStream");
         if (failed() || !urlClass || !connClass || !inClass || !outClass) break;
         jobject u = env->NewObject(urlClass, env->GetMethodID(urlClass, "<init>", "(Ljava/lang/String;)V"), jstr(url));
-        if (failed() || !u) { error = "bad address"; break; }
+        if (failed() || !u) { error = "bad address " + javaError; break; }
         jobject conn = env->CallObjectMethod(u, env->GetMethodID(urlClass, "openConnection", "()Ljava/net/URLConnection;"));
         if (failed() || !conn) break;
         env->CallVoidMethod(conn, env->GetMethodID(connClass, "setConnectTimeout", "(I)V"), 10000);
@@ -284,6 +297,7 @@ bool HttpPost(const std::string& url, const std::string& post, const std::string
         status = (int)code;
         ok = true;
     } while (false);
+    if (!ok && error.empty()) error = javaError.empty() ? "no connection" : "no connection (" + javaError + ")";
     env->PopLocalFrame(nullptr);
     return ok;
 }
