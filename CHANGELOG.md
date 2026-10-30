@@ -2,6 +2,12 @@
 
 ## Unreleased
 
+- **A new address: github.com/mamesj/pokemon-fulldex** (the old pokemon-ds-widescreen address
+  still leads there). The bug report link, the PC download's `README.txt` and the Linux
+  AppImage's updates use it.
+- **The README:** a new trailer (the new name, the GBA games, RetroAchievements, cheats and the
+  game list's look), and pictures of the GBA games: Emerald's Rayquaza, Pacifidlog and
+  Sootopolis, FireRed's Mewtwo and Snorlax, LeafGreen's Articuno and Lavender Town.
 - **The GBA games take the DS games' settings:** SMOOTH SCALING, FPS COUNTER, VOLUME and BUTTONS
   are copied to them each time one starts, so they look and sound the same. With SMOOTH SCALING
   off, the GBA's own SCALING stays SHARP (fills the screen) or WHOLE PIXELS (the crispest, with a
