@@ -1133,7 +1133,7 @@ struct WideAccess
         const bool textured = (tp >> 26) & 7;
         const float sMax = (float)((8 << ((tp >> 20) & 7)) * 16), tMax = (float)((8 << ((tp >> 23) & 7)) * 16);
         static const bool stretchOnly = getenv("SSR_WIDE_EXTEND_STRETCH") != nullptr; // (to compare)
-        bool carry = !stretchOnly;
+        bool carry = !stretchOnly, steep = false;
         for (u32 v = 0; v < n && carry; v++)
         {
             const Corner& o = c[v];
@@ -1152,6 +1152,14 @@ struct WideAccess
                 carry = false;
                 break;
             }
+            // (Along an edge steeper than it is long across, a corner goes further down or up the
+            // view than out to its edge: that is the side of something running down the view, not
+            // the top or bottom edge of something cut off at the side. Such a polygon is held to the
+            // limit for anything near, below, even if it counts as a layer of the distance: from
+            // above, the fence round a planter by the stairs to Aspertia's lookout did, and its
+            // thin side ran on down across the street to the view's corner as one long rail. The
+            // street's paving beside it, as steep but wide, is still continued.)
+            if (std::abs(o.y - in.y) > std::abs(dx)) steep = true;
             // A texture that ends exactly at the corner, at a whole number of its repeats (Castelia's
             // sky: each panel one repeat of its own picture), goes on in the panel beside it,
             // which the game left out and which may show another picture: carried on, it starts
@@ -1208,9 +1216,9 @@ struct WideAccess
                 fprintf(stderr, "[extend]   corners:");
                 for (u32 v = 0; v < n; v++) fprintf(stderr, " (%d,%d st %d,%d)", c[v].x, c[v].y, c[v].rs, c[v].rt);
                 fprintf(stderr, " carry %d added %d width %d%s\n", carry ? 1 : 0, added, x1 - x0,
-                    (s64)added * (carry ? (layer ? 1 : 2) : 5) > (s64)(x1 - x0) ? " TOO FAR: left" : "");
+                    (s64)added * (carry ? (layer && !steep ? 1 : 2) : 5) > (s64)(x1 - x0) ? " TOO FAR: left" : "");
             }
-            if ((s64)added * (carry ? (layer ? 1 : 2) : 5) > (s64)(x1 - x0)) return;
+            if ((s64)added * (carry ? (layer && !steep ? 1 : 2) : 5) > (s64)(x1 - x0)) return;
         }
         for (u32 v = 0; v < n; v++)
         {

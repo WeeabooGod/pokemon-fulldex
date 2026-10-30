@@ -21,7 +21,9 @@
 - **Black 2: no flicker at the edges as the camera rises at Aspertia City's lookout.** The sky,
   hills and mountains were continued to the wide view's edges in some frames and not others while
   the view tilted up. A wedge of grass that flashed over the cliff at the top right, for a frame,
-  is gone too: the far hillside was stretched past where it really ends.
+  is gone too: the far hillside was stretched past where it really ends. Below the lookout, the
+  fence round the planter by the street no longer runs on across the street as a long rail, and
+  the paving beside it has no jagged step.
 - **Widescreen: things no longer vanish while still on screen.** Black 2's rocks and lamp posts at
   the bottom of the stairs up to Aspertia City's lookout disappeared a few pixels before they had
   scrolled out of the picture, and appeared late; the game now draws what is near the picture's
