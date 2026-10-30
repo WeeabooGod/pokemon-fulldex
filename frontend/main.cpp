@@ -18,6 +18,7 @@
 #include "sampler.h"
 #include "ssr_os.h"
 #include "achievements.h"
+#include "exclusives.h"
 #ifndef SSR_RA_VERSION
 #define SSR_RA_VERSION "0.0.0" // (CMakeLists.txt sets it from CHANGELOG.md)
 #endif
@@ -1351,6 +1352,9 @@ struct Settings
     // RETROACHIEVEMENTS (achievements.h): on or off (off to start), and the account's user name
     // and the token the server gave at login (never the password).
     Achievements::Account ra;
+    // OTHER VERSION POKEMON (exclusives.h): SoulSilver and HeartGold's wild Pokemon of both
+    // versions. Off to start.
+    bool bothVersions = false;
 
     void Load(const std::string& path)
     {
@@ -1400,6 +1404,7 @@ struct Settings
             else if (k == "wide_gpu") wideGpu = v == "1";
             else if (k == "ds3d_gpu") ds3dGpu = v != "0";
             else if (k == "ra") ra.on = v == "1";
+            else if (k == "both_versions") bothVersions = v == "1";
             else if (k == "ra_user") ra.user = v;
             else if (k == "ra_token") ra.token = v;
             else if (k == "battle_buttons") battleButtons = v == "corner" ? 0 : v == "panel" ? 2 : 1;
@@ -1437,6 +1442,7 @@ struct Settings
         f << "start_button=" << (startMenu ? "menu" : "ds") << "\n";
         f << "battle_buttons=" << (battleButtons == 0 ? "corner" : battleButtons == 2 ? "panel" : "strip") << "\n";
         controls.Save(f);
+        f << "both_versions=" << (bothVersions ? 1 : 0) << "\n";
         f << "ra=" << (ra.on ? 1 : 0) << "\n";
         if (!ra.user.empty()) f << "ra_user=" << ra.user << "\n";
         if (!ra.token.empty()) f << "ra_token=" << ra.token << "\n";
@@ -1680,6 +1686,9 @@ int main(int argc, char** argv)
             fprintf(stderr, "[recomp] cannot read the overlays of %s\n", opt.rom.c_str());
     }
     if (!nds->ARM9.RecompEnable && !funcWatchOn && rc_num_chunks) rc_watch_attach(*nds);
+    // OTHER VERSION POKEMON: both versions' wild Pokemon tables, from this ROM (exclusives.h).
+    static VersionExclusives exclusives;
+    if (soulSilverRom && !opt.lockstep && rc_num_chunks) exclusives.Init(opt.rom, gameCode, *nds);
     // (Attached once the layouts' functions are known, below.)
     if (!opt.traceFuncsAt.empty() && !funcWatchOn)
     {
@@ -1772,7 +1781,7 @@ int main(int argc, char** argv)
         const std::string cfgPath = opt.config;
         Achievements::Start(&cfg.ra, std::string("PokemonDSWidescreen/") + SSR_RA_VERSION, [&cfg, cfgPath]() { cfg.Save(cfgPath); });
         Achievements::SetGame(nds.get(), romFingerprint);
-        Achievements::SetCheats(cheats.On() > 0);
+        Achievements::SetCheats(cheats.On() > 0 || (cfg.bothVersions && exclusives.Supported()));
     }
 #ifdef __SWITCH__
     // Not in the Switch's pause menu any more, so what an older version saved is not kept: the
@@ -1785,6 +1794,7 @@ int main(int argc, char** argv)
 #endif
     for (const std::string& kv : opt.sets) cfg.Apply(kv);
     if (!opt.sets.empty() || opt.keepSettings) cfg.readOnly = true;
+    exclusives.on = cfg.bothVersions && exclusives.Supported();
 #ifdef __SWITCH__
     // (No CPU BOOST any more: the system kept taking its boost mode away and the game dropped
     // frames. sys-clk sets the clocks; see README. A boost a saved setting asks for is ignored.)
@@ -3906,7 +3916,7 @@ int main(int argc, char** argv)
         M_WIDELINES, M_AUTODETAIL, M_WIDEGPU, M_GPU3D, M_SHOWFPS, M_BUTTONS, M_PADTOUCH, M_EMULATION,
         M_CONTROLS, M_STARTBTN, M_FAST, M_FFLOWRES, M_SAVESTATE, M_LOADSTATE, M_RESET, M_QUIT,
         M_DISPLAY, M_GRAPHICS, M_CONTROLMENU, M_BACK, M_CHEATS, M_NOTHING,
-        M_RA, M_RA_ON, M_RA_ACCOUNT, M_RA_GAME, M_RA_LOGIN, M_RA_TYPED, M_RA_CANCEL,
+        M_RA, M_RA_ON, M_RA_ACCOUNT, M_RA_GAME, M_RA_LOGIN, M_RA_TYPED, M_RA_CANCEL, M_BOTHVER,
         M_CHEAT0 = 1000 // (M_CHEAT0 + i: cheat i, CHEATS)
     };
     enum { PAGE_MAIN, PAGE_KEYS, PAGE_DISPLAY, PAGE_GRAPHICS, PAGE_CONTROLS, PAGE_CHEATS, PAGE_RA };
@@ -3983,6 +3993,7 @@ int main(int argc, char** argv)
             add(M_GRAPHICS, "GRAPHICS", "");
             add(M_CONTROLMENU, "CONTROLS", "");
             add(M_CHEATS, "CHEATS", cheats.On() ? std::to_string(cheats.On()) + " ON" : "");
+            if (exclusives.Supported()) add(M_BOTHVER, "OTHER VERSION POKEMON", onOff(exclusives.on));
             if (Achievements::Available()) add(M_RA, "RETROACHIEVEMENTS", onOff(cfg.ra.on));
             add(M_RESET, "RESET GAME", "");
             add(M_QUIT, "QUIT", "");
@@ -4334,6 +4345,7 @@ int main(int argc, char** argv)
             if (funcWatchOn) funcWatch.NextFrame();
             nds->RunFrame();
             Achievements::DoFrame(); // (on this thread: it reads the game's memory)
+            exclusives.DoFrame();
             int avail = nds->SPU.GetOutputSize();
             if (avail > (int)audioBuf.size() / 2) avail = (int)audioBuf.size() / 2;
             int n = nds->SPU.ReadOutput(audioBuf.data(), avail);
@@ -5227,11 +5239,17 @@ int main(int argc, char** argv)
             {
                 cheats.Toggle((size_t)(id - M_CHEAT0));
                 cheats.Apply(nds->AREngine);
-                Achievements::SetCheats(cheats.On() > 0);
+                Achievements::SetCheats(cheats.On() > 0 || exclusives.on);
                 fprintf(stderr, "[cheats] %s %s\n", cheats.items[id - M_CHEAT0].key.c_str(), cheats.items[id - M_CHEAT0].on ? "on" : "off");
             }
             switch (id)
             {
+            case M_BOTHVER:
+                // (Achievements are not followed while it is on, as with a cheat: the other
+                // version's Pokemon are for the other version's players.)
+                exclusives.on = cfg.bothVersions = !exclusives.on;
+                Achievements::SetCheats(cheats.On() > 0 || exclusives.on);
+                break;
             case M_CHEATS:
                 goPage(PAGE_CHEATS, -1);
                 hit = -1;
@@ -6684,6 +6702,7 @@ int main(int argc, char** argv)
             // (What START BUTTON does, while it is the one chosen.)
             if (selId == M_STARTBTN) hint = cfg.startMenu ? "START OPENS THIS MENU" : "START IS THE DS START";
             if (selId == M_CONTROLS) hint = "GIVE ANY BUTTON ANOTHER KEY OR BUTTON";
+            if (selId == M_BOTHVER) hint = "WILD POKEMON OF BOTH VERSIONS";
             if (selId == M_CHEATS) hint = cheats.items.empty() ? "NONE FOUND: SEE THE README" : "ACTION REPLAY CODES";
             if (selId == M_NOTHING) hint = "GET USRCHEAT.DAT: SEE THE README";
             // RETROACHIEVEMENTS.

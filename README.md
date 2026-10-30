@@ -396,6 +396,13 @@ Please tell us how it runs on yours, with your model (see [Reporting a bug](#rep
   one-screen layouts.
 - **Saves:** `soulsilver.sav` and `heartgold.sav` (the same format, so either
   game reads the other's).
+- **No version exclusives:** OTHER VERSION POKEMON in the pause menu (off to
+  start). Where the two versions have different wild Pokémon (Phanpy or
+  Teddiursa, Growlithe or Vulpix, Spinarak or Ledyba...), each encounter can be
+  either, as often as each other, at that place's own rates and levels. Both
+  versions' tables are already in every SoulSilver and HeartGold ROM: nothing is
+  added. Legendary Pokémon stay with their own version. RetroAchievements are
+  paused while it is on, as with cheats.
 - **What you get:** Johto and Kanto in widescreen, with your partner Pokémon
   walking behind you; battles with their buttons beside the action; menus laid
   out for one screen. Where this project started: the original ssrecomp was

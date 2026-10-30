@@ -2,6 +2,11 @@
 
 ## Unreleased
 
+- **SoulSilver and HeartGold: no version exclusives (OTHER VERSION POKEMON in the pause menu).**
+  Where the two versions' wild Pokémon differ, each encounter can be either version's, as often as
+  each other, at that place's own rates and levels: both tables are in every ROM of either game.
+  Legendary Pokémon stay with their own version. Off to start; RetroAchievements are paused while
+  it is on.
 - **SoulSilver, HeartGold and Platinum: the European English copies** are listed as working: their
   code is the US versions' (only a picture and the version number differ), and they play the
   same, with the one-screen layouts and the widescreen world.
