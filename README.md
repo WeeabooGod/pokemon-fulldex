@@ -398,7 +398,7 @@ Please tell us how it runs on yours, with your model (see [Reporting a bug](#rep
   game reads the other's).
 - **No version exclusives:** OTHER VERSION POKEMON in the pause menu (off to
   start). Where the two versions have different wild Pokémon (Phanpy or
-  Teddiursa, Growlithe or Vulpix, Spinarak or Ledyba...), each encounter can be
+  Teddiursa, Growlithe or Vulpix, Caterpie or Weedle...), each encounter can be
   either, as often as each other, at that place's own rates and levels. Both
   versions' tables are already in every SoulSilver and HeartGold ROM: nothing is
   added. Legendary Pokémon stay with their own version. RetroAchievements are
