@@ -533,9 +533,10 @@ inline int FirstIn(const View& v) { return v.spots.empty() ? -1 : v.spots[0].gam
 // the tab's games as tiles, each the game's picture (or its DS icon, enlarged) with its name and
 // whether it has a save, under each console's heading on ALL. selected: -1 for none. scroll is
 // kept so the chosen game is in view (follow false: as it is, a finger having scrolled the list).
-// hint: the line along the bottom (the Switch's buttons when empty).
+// hint: the line along the bottom (the Switch's buttons when empty). onTabs: the tabs are chosen
+// (up from the first row of games; left and right then change the tab), the shown one framed.
 inline void Draw(Canvas& c, const std::vector<Game>& games, int tab, int selected, int& scroll, const std::string& note,
-                 const std::string& hintText = std::string(), const Theme& th = Theme(), bool follow = true)
+                 const std::string& hintText = std::string(), const Theme& th = Theme(), bool follow = true, bool onTabs = false)
 {
     const View v = MakeView(c, games, tab);
     const Grid& grid = v.g;
@@ -551,6 +552,7 @@ inline void Draw(Canvas& c, const std::vector<Game>& games, int tab, int selecte
     {
         const std::string name = TabName(t);
         const int x = TabX(c, grid, t) - Canvas::TextWidth(name, s) / 2, y = grid.tabsY + 3 * s;
+        if (onTabs && t == tab) c.Fill(x - 3 * s, y - 3 * s, Canvas::TextWidth(name, s) + 5 * s, 13 * s, th.frame);
         c.Text(x, y, name, s, t == tab ? th.title : th.hint);
         if (t == tab) c.Fill(x - 2 * s, grid.tabsY + grid.tabsH - s, Canvas::TextWidth(name, s) + 3 * s, s, th.frame);
     }

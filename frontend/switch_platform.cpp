@@ -207,7 +207,9 @@ int PickGame(const std::vector<Launcher::Game>& games, int selected, const std::
     hidInitializeTouchScreen();
     bool touching = false;
     int touchX = 0, touchY = 0;
-    bool onSettings = false; // SETTINGS chosen with the D-pad (up from the first row of games)
+    // SETTINGS or the tabs chosen with the D-pad: up from the first row of games the tabs (left
+    // and right change the tab), up again SETTINGS.
+    bool onSettings = false, onTabs = false;
     // The tab shown (ALL first, the list opens on it), how far down it is scrolled; selected: a
     // game in that tab, or -1 when it has none (Launcher::MakeView, Step).
     int tab = 0, scroll = 0, held = 0, result = -1;
@@ -374,32 +376,54 @@ int PickGame(const std::vector<Launcher::Game>& games, int selected, const std::
             // it is in the new one.
             const u64 tl = ctl.PadCustom() ? action(Controls::L) : (u64)HidNpadButton_L;
             const u64 tr = ctl.PadCustom() ? action(Controls::R) : (u64)HidNpadButton_R;
-            if (down & (tl | tr))
-            {
-                tab = (tab + ((down & tr) ? 1 : Launcher::TABS - 1)) % Launcher::TABS;
+            auto setTab = [&](int by) {
+                tab = (tab + by + Launcher::TABS) % Launcher::TABS;
                 scroll = 0;
                 const Launcher::View v = view();
                 if (v.SpotOf(selected) < 0) selected = Launcher::FirstIn(v);
+                if (Launcher::FirstIn(v) < 0) onTabs = true; // (no games: left and right go on)
                 note.clear();
-            }
+            };
+            if (down & (tl | tr)) setTab((down & tr) ? 1 : -1);
             const bool step = held == 1 || (held > 20 && held % 6 == 0);
             const int dir = !step ? 0 : lf ? 1 : rt ? 2 : up ? 3 : dn ? 4 : 0;
-            if (dir && onSettings)
+            const bool aDown = (down & (ctl.PadCustom() ? action(Controls::A) : (u64)HidNpadButton_A)) != 0;
+            const bool wasNav = onSettings || onTabs; // (A there is not a game's: it is not played as well)
+            if (onSettings)
             {
-                // (Down from SETTINGS: back to the games.)
-                if (dir == 4 && selected >= 0) onSettings = false;
+                // (Down from SETTINGS: the tabs.)
+                if (dir == 4)
+                {
+                    onSettings = false;
+                    onTabs = true;
+                }
+            }
+            else if (onTabs)
+            {
+                // Left and right: the tabs; down (or A): into the tab's games; up: SETTINGS.
+                if (dir == 1 || dir == 2) setTab(dir == 2 ? 1 : -1);
+                else if (dir == 3)
+                {
+                    onTabs = false;
+                    onSettings = true;
+                }
+                else if ((dir == 4 || aDown) && Launcher::FirstIn(view()) >= 0)
+                {
+                    onTabs = false;
+                    if (view().SpotOf(selected) < 0) selected = Launcher::FirstIn(view());
+                }
             }
             else if (dir)
             {
                 const int to = Launcher::Step(view(), selected, dir);
-                if (to < 0 && dir == 3) onSettings = true; // (up from the first row)
+                if (to < 0 && dir == 3) onTabs = true; // (up from the first row)
                 else if (to >= 0 && to != selected)
                 {
                     selected = to;
                     note.clear();
                 }
             }
-            if (!onSettings && selected >= 0 && (down & (ctl.PadCustom() ? action(Controls::A) : (u64)HidNpadButton_A)))
+            if (!wasNav && !onSettings && !onTabs && selected >= 0 && (down & (ctl.PadCustom() ? action(Controls::A) : (u64)HidNpadButton_A)))
             {
                 if (Playable(games[selected]))
                 {
@@ -418,7 +442,7 @@ int PickGame(const std::vector<Launcher::Game>& games, int selected, const std::
                                              : "UP / DOWN: CHOOSE    LEFT / RIGHT / A: CHANGE    B: BACK");
             if (keysOpen) keysMenu.Draw(canvas, "KEYS AND BUTTONS", keysCapture >= 0 ? "OR WAIT 5 SECONDS: AS IT WAS" : "A: CHANGE   B: BACK");
         }
-        else Launcher::Draw(canvas, games, tab, onSettings ? -1 : selected, scroll, note);
+        else Launcher::Draw(canvas, games, tab, onSettings || onTabs ? -1 : selected, scroll, note, std::string(), Launcher::Theme(), true, onTabs);
         {
             // The title band's buttons, as pc_launcher.cpp draws them (the chosen one framed).
             const int s = std::max(1, canvas.h / 240);

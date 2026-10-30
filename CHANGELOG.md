@@ -57,7 +57,10 @@
 - **Switch: the game list's settings no longer seem to freeze.** Y opened the settings page, but
   the game list was drawn over it, so the buttons went to a page you could not see. The list also
   has a SETTINGS button at the top right, as on a PC or a phone: tap it in handheld mode, or press
-  up from the top row of games and then A; < BACK at the top left of the settings goes back.
+  up from the tabs and then A; < BACK at the top left of the settings goes back.
+- **Game list: the tabs with the D-pad or arrow keys.** Up from the top row of games chooses the
+  tabs (ALL, DS, GBA, 3DS); left and right then change the tab, down goes back into its games, and
+  up again chooses SETTINGS. L and R (Q and E on a keyboard) still change the tab from anywhere.
 - **Widescreen: things no longer vanish while still on screen.** Black 2's rocks and lamp posts at
   the bottom of the stairs up to Aspertia City's lookout disappeared a few pixels before they had
   scrolled out of the picture, and appeared late; the game now draws what is near the picture's

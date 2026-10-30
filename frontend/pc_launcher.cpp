@@ -400,6 +400,7 @@ int PickGame(Folders& fo, std::vector<Launcher::Game>& games, int selected, bool
     // L and R (Q and E, or a controller's shoulder buttons; a tap on a tab): the next tab, keeping
     // the chosen game if it is in it.
     // (why: said in game.log, with the tab.)
+    bool onTabs = false; // the tabs chosen by the arrows (up from the first row of games)
     auto setTab = [&](int t, const char* why) {
         tab = (t + Launcher::TABS) % Launcher::TABS;
         fprintf(stderr, "[launcher] tab %s (%s)\n", Launcher::TabName(tab), why);
@@ -407,6 +408,8 @@ int PickGame(Folders& fo, std::vector<Launcher::Game>& games, int selected, bool
         follow = true;
         const Launcher::View v = view();
         if (v.SpotOf(selected) < 0) selected = Launcher::FirstIn(v);
+        // (A tab without games: the arrows stay on the tabs, to go on to the next.)
+        if (Launcher::FirstIn(v) < 0) onTabs = true;
         note.clear();
     };
     // Held directions repeat, as on the Switch.
@@ -428,7 +431,7 @@ int PickGame(Folders& fo, std::vector<Launcher::Game>& games, int selected, bool
     float trig[2] = {}; // (the triggers as last seen: one pushed past half way is a press)
     // The title band's SETTINGS (and BACK on the settings page) can be chosen like a game: up
     // from the top row (the first option), then A.
-    bool onSettings = false, onBack = false;
+    bool onSettings = false, onBack = false; // (the title band's SETTINGS / BACK: by the D-pad)
     auto toggleGuide = [&]() {
         guide = !guide;
         onBack = false;
@@ -553,6 +556,16 @@ int PickGame(Folders& fo, std::vector<Launcher::Game>& games, int selected, bool
             toggleGuide();
             return;
         }
+        if (onTabs)
+        {
+            // (A on a tab: down into its games.)
+            if (Launcher::FirstIn(view()) >= 0)
+            {
+                onTabs = false;
+                if (view().SpotOf(selected) < 0) selected = Launcher::FirstIn(view());
+            }
+            return;
+        }
 #ifdef __ANDROID__
         if (needFolder || games.empty())
         {
@@ -588,17 +601,37 @@ int PickGame(Folders& fo, std::vector<Launcher::Game>& games, int selected, bool
         }
         if (onSettings)
         {
-            if (dir == 4 && !games.empty()) onSettings = false;
+            if (dir == 4)
+            {
+                onSettings = false;
+                onTabs = true;
+            }
+            return;
+        }
+        // The tabs: left and right change the tab, down goes into its games, up to SETTINGS.
+        if (onTabs)
+        {
+            if (dir == 1 || dir == 2) setTab(tab + (dir == 2 ? 1 : -1), "the arrows");
+            else if (dir == 3)
+            {
+                onTabs = false;
+                onSettings = true;
+            }
+            else if (dir == 4 && Launcher::FirstIn(view()) >= 0)
+            {
+                onTabs = false;
+                if (view().SpotOf(selected) < 0) selected = Launcher::FirstIn(view());
+            }
             return;
         }
         // Through the tab's games, across its headings (Launcher::Step); up from the top row: the
-        // title band's SETTINGS.
+        // tabs (and up again, the title band's SETTINGS).
         follow = true;
         const Launcher::View v = view();
         const int to = v.spots.empty() ? -1 : Launcher::Step(v, selected, dir);
         if (to < 0)
         {
-            if (dir == 3) onSettings = true;
+            if (dir == 3) onTabs = true;
             return;
         }
         if (to != selected)
@@ -898,7 +931,7 @@ int PickGame(Folders& fo, std::vector<Launcher::Game>& games, int selected, bool
                 if (i >= 0 && (i != selected || onSettings) && (e.type == SDL_MOUSEBUTTONDOWN || (e.motion.xrel || e.motion.yrel)))
                 {
                     selected = i;
-                    onSettings = false;
+                    onSettings = onTabs = false;
                     note.clear();
                     // (A tap: the list follows it, unless the finger goes on to drag. A mouse
                     // passing over a tile leaves the list where it is.)
@@ -1037,7 +1070,7 @@ int PickGame(Folders& fo, std::vector<Launcher::Game>& games, int selected, bool
                 keysMenu.Draw(canvas, "KEYS AND BUTTONS", kh);
             }
         }
-        else Launcher::Draw(canvas, games, tab, onSettings ? -1 : selected, scroll, note, hint, theme, follow);
+        else Launcher::Draw(canvas, games, tab, onSettings || onTabs ? -1 : selected, scroll, note, hint, theme, follow, onTabs);
         {
             // The title band's buttons (for touch screens and the mouse): SETTINGS, or BACK in
             // the settings; on Android FOLDER, to choose the ROM folder again.
