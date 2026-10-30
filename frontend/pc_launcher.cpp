@@ -43,6 +43,9 @@
 #if !defined(SSR_PHONE) && !defined(__SWITCH__)
 #include "shortcuts.h"
 #endif
+#ifdef SSR_GBA
+#include "gba_games.h" // Pokemon GBA Widescreen, built in: its GBA games (CMakeLists.txt, SSR_GBA_DIR)
+#endif
 
 // How many chunks the program's SoulSilver tables have (none in a build without them).
 extern const uint32_t rc_num_chunks;
@@ -241,6 +244,7 @@ void ExtractFuncs(const Folders& fo)
 // the others their function table in data/funcs.
 bool Playable(const Folders& fo, const Launcher::Game& g)
 {
+    if (g.platform == Launcher::GBA) return true; // (any GBA game plays, with widescreen or without)
     if (!g.known) return false;
     if (g.code == "IPGE" || g.code == "IPKE") return rc_num_chunks > 0;
     return Exists(fo.funcs + "/" + g.code + ".txt");
@@ -281,6 +285,10 @@ std::vector<Launcher::Game> FindGames(const Folders& fo, std::map<std::string, s
             games.push_back(std::move(g));
         }
     }
+#ifdef SSR_GBA
+    // The GBA games in the same roms folder, their saves in saves/ too (emerald.sav ...).
+    GbaGames::Add(fo.roms, fo.saves, games, artCache);
+#endif
     Launcher::Sort(games);
     return games;
 }
@@ -355,8 +363,38 @@ int PickGame(Folders& fo, std::vector<Launcher::Game>& games, int selected, bool
     std::map<std::string, std::vector<uint32_t>> artCache;
     std::vector<SDL_GameController*> pads;
     std::vector<SDL_Joystick*> joys; // (gamepads SDL has no layout for)
-    int first = 0, result = -1, cols = 3;
+    // The tab shown (Launcher::TABS: ALL first, the list opens on it; back from a GBA game, the
+    // tab it was chosen on) and how far down it is scrolled. selected: a game in that tab, or -1
+    // when it has none.
+    static int lastTab = 0;
+    int tab = lastTab, scroll = 0, result = -1;
     std::string note;
+    auto view = [&]() { return Launcher::MakeView(canvas, games, tab); };
+    // Tests, without anyone there: SSR_LIST_TAB=n opens on tab n; SSR_LIST_PICK=a game code chooses
+    // that game the first time the list is shown; SSR_LIST_SHOT=file.bmp keeps the list as drawn
+    // (after the pick, the next time) in that picture and closes it.
+    static int listsShown = 0;
+    listsShown++;
+    const char* testShot = getenv("SSR_LIST_SHOT");
+    const char* testPick = listsShown == 1 ? getenv("SSR_LIST_PICK") : nullptr;
+    if (const char* t = getenv("SSR_LIST_TAB")) tab = std::max(0, std::min(Launcher::TABS - 1, atoi(t)));
+    // (The game chosen last, if it is in that tab; else the tab's first. The games are in the
+    // view's order.)
+    if (selected < 0 || selected >= (int)games.size() || !Launcher::InTab(games[selected].platform, tab))
+    {
+        selected = -1;
+        for (size_t i = 0; i < games.size() && selected < 0; i++)
+            if (Launcher::InTab(games[i].platform, tab)) selected = (int)i;
+    }
+    // L and R (Q and E, or a controller's shoulder buttons; a tap on a tab): the next tab, keeping
+    // the chosen game if it is in it.
+    auto setTab = [&](int t) {
+        tab = (t + Launcher::TABS) % Launcher::TABS;
+        scroll = 0;
+        const Launcher::View v = view();
+        if (v.SpotOf(selected) < 0) selected = Launcher::FirstIn(v);
+        note.clear();
+    };
     // Held directions repeat, as on the Switch.
     int held = 0, heldDir = 0;
     Uint32 lastScan = SDL_GetTicks();
@@ -508,7 +546,7 @@ int PickGame(Folders& fo, std::vector<Launcher::Game>& games, int selected, bool
             return;
         }
 #endif
-        if (games.empty()) return;
+        if (games.empty() || selected < 0 || selected >= (int)games.size()) return;
         if (Playable(fo, games[selected]))
         {
             result = selected;
@@ -539,18 +577,16 @@ int PickGame(Folders& fo, std::vector<Launcher::Game>& games, int selected, bool
             if (dir == 4 && !games.empty()) onSettings = false;
             return;
         }
-        if (dir == 3 && (games.empty() || selected < cols))
+        // Through the tab's games, across its headings (Launcher::Step); up from the top row: the
+        // title band's SETTINGS.
+        const Launcher::View v = view();
+        const int to = v.spots.empty() ? -1 : Launcher::Step(v, selected, dir);
+        if (to < 0)
         {
-            onSettings = true; // (up from the top row)
+            if (dir == 3) onSettings = true;
             return;
         }
-        if (games.empty()) return;
-        int to = selected;
-        if (dir == 1) to = selected - 1;
-        if (dir == 2) to = selected + 1;
-        if (dir == 3) to = selected - cols;
-        if (dir == 4) to = std::min(selected + cols, (int)games.size() - 1);
-        if (to != selected && to >= 0 && to < (int)games.size())
+        if (to != selected)
         {
             selected = to;
             note.clear();
@@ -652,7 +688,8 @@ int PickGame(Folders& fo, std::vector<Launcher::Game>& games, int selected, bool
                     if (ctl.KeyCustom(a) && ctl.key[a] == e.key.keysym.scancode) act = a;
                 if (act >= 0)
                 {
-                    if (act == Controls::A || act == Controls::START) { if (!e.key.repeat) choose(); }
+                    if (act == Controls::L || act == Controls::R) { if (!guide) setTab(tab + (act == Controls::R ? 1 : -1)); }
+                    else if (act == Controls::A || act == Controls::START) { if (!e.key.repeat) choose(); }
                     else if (act == Controls::B || act == Controls::MENU) { if (guide) { if (!page.Back()) guide = false; } else quit = true; }
                     else if (act == Controls::Y) toggleGuide();
                     else if (act >= Controls::UP && act <= Controls::RIGHT)
@@ -669,6 +706,8 @@ int PickGame(Folders& fo, std::vector<Launcher::Game>& games, int selected, bool
                 case SDLK_ESCAPE: case SDLK_AC_BACK: if (guide) { if (!page.Back()) guide = false; } else quit = true; break;
                 case SDLK_h: case SDLK_F1: toggleGuide(); break;
                 case SDLK_o: OpenFolder(fo.roms); break;
+                case SDLK_q: case SDLK_PAGEUP: if (!guide) setTab(tab - 1); break;
+                case SDLK_e: case SDLK_PAGEDOWN: case SDLK_TAB: if (!guide) setTab(tab + 1); break;
                 case SDLK_F11:
                     fullscreen = !fullscreen;
                     SDL_SetWindowFullscreen(window, fullscreen ? SDL_WINDOW_FULLSCREEN_DESKTOP : 0);
@@ -709,8 +748,10 @@ int PickGame(Folders& fo, std::vector<Launcher::Game>& games, int selected, bool
                 const int act = ctl.PadCustom() ? ctl.ActionOfPad(in, ctl.byLabel)
                               : in == Controls::IN_A || in == Controls::IN_START ? Controls::A
                               : in == Controls::IN_B || in == Controls::IN_BACK ? Controls::B
-                              : in == Controls::IN_Y ? Controls::Y : -1;
-                if (act == Controls::A || act == Controls::START) choose();
+                              : in == Controls::IN_Y ? Controls::Y
+                              : in == Controls::IN_LB ? Controls::L : in == Controls::IN_RB ? Controls::R : -1;
+                if (act == Controls::L || act == Controls::R) { if (!guide) setTab(tab + (act == Controls::R ? 1 : -1)); }
+                else if (act == Controls::A || act == Controls::START) choose();
                 else if (act == Controls::B || act == Controls::SELECT) { if (guide) { if (!page.Back()) guide = false; } else quit = true; }
                 else if (act == Controls::Y) toggleGuide();
                 break;
@@ -774,7 +815,17 @@ int PickGame(Folders& fo, std::vector<Launcher::Game>& games, int selected, bool
                     }
                     break;
                 }
-                const int i = Launcher::TileAt(canvas, (int)games.size(), first, mx, my);
+                // A tab: shown.
+                if (e.type == SDL_MOUSEBUTTONUP && !dragging)
+                {
+                    const int t = Launcher::TabAt(canvas, mx, my);
+                    if (t >= 0)
+                    {
+                        if (t != tab) setTab(t);
+                        break;
+                    }
+                }
+                const int i = Launcher::TileAt(view(), scroll, mx, my);
                 if (e.type == SDL_MOUSEBUTTONUP)
                 {
                     // A tap on the chosen game plays it when the finger lifts (not as it lands:
@@ -878,11 +929,12 @@ int PickGame(Folders& fo, std::vector<Launcher::Game>& games, int selected, bool
         if (SDL_GetTicks() - lastScan > 1500)
         {
             lastScan = SDL_GetTicks();
-            const std::string current = games.empty() ? std::string() : games[selected].rom;
+            const std::string current = selected < 0 || selected >= (int)games.size() ? std::string() : games[selected].rom;
             games = FindGames(fo, artCache);
-            selected = 0;
+            selected = -1;
             for (size_t i = 0; i < games.size(); i++)
                 if (games[i].rom == current) selected = (int)i;
+            if (selected < 0 || view().SpotOf(selected) < 0) selected = Launcher::FirstIn(view());
         }
 
         int ow = 1280, oh = 720;
@@ -897,7 +949,8 @@ int PickGame(Folders& fo, std::vector<Launcher::Game>& games, int selected, bool
         // CONTROLS has them, while one is connected.
         const bool padIn = !pads.empty() || !joys.empty();
         auto btn = [&](int a) {
-            const int def = a == Controls::A ? Controls::IN_A : a == Controls::B ? Controls::IN_B : Controls::IN_Y;
+            const int def = a == Controls::A ? Controls::IN_A : a == Controls::B ? Controls::IN_B
+                          : a == Controls::L ? Controls::IN_LB : a == Controls::R ? Controls::IN_RB : Controls::IN_Y;
             return std::string(Controls::InputName(ctl.PadCustom() ? ctl.Pad(a, ctl.byLabel) : def,
                 Controls::StyleOf(pads.empty() ? nullptr : pads[0])));
         };
@@ -909,14 +962,14 @@ int PickGame(Folders& fo, std::vector<Launcher::Game>& games, int selected, bool
                                            : std::string("TAP AN OPTION THEN TAP AGAIN TO CHANGE    DRAG TO SCROLL");
 #elif defined(__ANDROID__)
         const std::string hint = games.empty() ? "TAP OR PRESS " + (padIn ? btn(Controls::A) : std::string("A")) + " TO CHOOSE YOUR ROMS FOLDER    BACK: QUIT"
-                               : padIn ? "TAP A GAME TWICE OR PRESS " + btn(Controls::A) + " TO PLAY    " + btn(Controls::Y) + ": SETTINGS    BACK: QUIT"
+                               : padIn ? "TAP A GAME TWICE OR PRESS " + btn(Controls::A) + " TO PLAY    " + btn(Controls::L) + " / " + btn(Controls::R) + ": TABS    BACK: QUIT"
                                        : std::string("TAP A GAME TWICE TO PLAY    SETTINGS: AT THE TOP    BACK: QUIT");
         const std::string pageHint = padIn ? "UP / DOWN: CHOOSE    " + btn(Controls::A) + ": CHANGE    " + btn(Controls::B) + ": BACK"
                                            : std::string("TAP AN OPTION THEN TAP AGAIN TO CHANGE    DRAG TO SCROLL    BACK: DONE");
 #else
         const std::string hint = games.empty() ? std::string("O: OPEN THE ROMS FOLDER    H: SETTINGS    ESC: QUIT")
-                               : padIn ? btn(Controls::A) + ": PLAY    " + btn(Controls::Y) + ": SETTINGS    " + btn(Controls::B) + ": QUIT"
-                                       : std::string("ENTER: PLAY    H: SETTINGS    O: ROMS FOLDER    ESC: QUIT");
+                               : padIn ? btn(Controls::A) + ": PLAY    " + btn(Controls::L) + " / " + btn(Controls::R) + ": TABS    " + btn(Controls::Y) + ": SETTINGS    " + btn(Controls::B) + ": QUIT"
+                                       : std::string("ENTER: PLAY    Q / E: TABS    H: SETTINGS    O: ROMS    ESC: QUIT");
         const std::string pageHint = page.group < 0 ? (padIn ? "UP / DOWN: CHOOSE    " + btn(Controls::A) + ": OPEN    " + btn(Controls::B) + ": BACK"
                                                              : std::string("UP / DOWN: CHOOSE    ENTER: OPEN    ESC: BACK"))
                                    : padIn ? "UP / DOWN: CHOOSE    LEFT / RIGHT / " + btn(Controls::A) + ": CHANGE    " + btn(Controls::B) + ": BACK"
@@ -934,7 +987,7 @@ int PickGame(Folders& fo, std::vector<Launcher::Game>& games, int selected, bool
                 keysMenu.Draw(canvas, "KEYS AND BUTTONS", kh);
             }
         }
-        else cols = Launcher::Draw(canvas, games, onSettings ? -1 : selected, first, note, hint, theme);
+        else Launcher::Draw(canvas, games, tab, onSettings ? -1 : selected, scroll, note, hint, theme);
         {
             // The title band's buttons (for touch screens and the mouse): SETTINGS, or BACK in
             // the settings; on Android FOLDER, to choose the ROM folder again.
@@ -994,7 +1047,26 @@ int PickGame(Folders& fo, std::vector<Launcher::Game>& games, int selected, bool
         SDL_RenderClear(renderer);
         SDL_RenderCopy(renderer, texture, nullptr, nullptr);
         SDL_RenderPresent(renderer);
+        if (testPick && *testPick)
+        {
+            for (size_t i = 0; i < games.size(); i++)
+                if (games[i].code == testPick) result = (int)i;
+            fprintf(stderr, "[launcher] test: %s chosen\n", testPick);
+            break;
+        }
+        if (testShot && *testShot)
+        {
+            if (SDL_Surface* sf = SDL_CreateRGBSurfaceWithFormatFrom(canvas.px.data(), canvas.w, canvas.h, 32, canvas.w * 4, SDL_PIXELFORMAT_ARGB8888))
+            {
+                SDL_SaveBMP(sf, testShot);
+                SDL_FreeSurface(sf);
+            }
+            fprintf(stderr, "[launcher] test: the list in %s\n", testShot);
+            result = -1;
+            break;
+        }
     }
+    lastTab = tab;
     for (SDL_GameController* p : pads) SDL_GameControllerClose(p);
     if (texture) SDL_DestroyTexture(texture);
     SDL_DestroyRenderer(renderer);
@@ -1126,8 +1198,37 @@ bool Start(int& argc, char**& argv)
             break;
         }
     if (!direct.empty() && directGame < 0) fprintf(stderr, "[launcher] --game %s: not in the list\n", direct.c_str());
-    chosen = directGame >= 0 ? directGame : PickGame(fo, games, chosen, fullscreen, winW, winH);
-    if (chosen < 0) return false;
+    for (;;)
+    {
+        chosen = directGame >= 0 ? directGame : PickGame(fo, games, chosen, fullscreen, winW, winH);
+        if (chosen < 0) return false;
+#ifdef SSR_GBA
+        // A GBA game: played here (Pokemon GBA Widescreen, built in), then the list again.
+        if (games[chosen].platform == Launcher::GBA)
+        {
+            const std::string rom = games[chosen].rom;
+            if (FILE* f = fopen(lastPath.c_str(), "w"))
+            {
+                fprintf(f, "%s\n", rom.c_str());
+                fclose(f);
+            }
+            GbaWide::Options o;
+            o.roms = fo.roms;
+            o.saves = fo.saves;
+            o.data = fo.dir;
+            o.fullscreen = ConfigFullscreen(fo.cfg, o.w, o.h);
+            fprintf(stderr, "[launcher] GBA: %s\n", rom.c_str());
+            GbaWide::Play(rom, o);
+            directGame = -1;
+            games = FindGames(fo, artCache);
+            chosen = 0;
+            for (size_t i = 0; i < games.size(); i++)
+                if (games[i].rom == rom) chosen = (int)i;
+            continue;
+        }
+#endif
+        break;
+    }
     g_canChange = true;
     const Launcher::Game& game = games[chosen];
     if (const Launcher::KnownGame* k = Launcher::Known(game.code)) g_name = k->name;

@@ -77,6 +77,7 @@ if [ "$JIT" = 1 ]; then
         -DSSR_SWITCH_ROMFS="${SSR_SWITCH_ROMFS:-}" \
         -DSSR_ALL_GAMES="${SSR_ALL_GAMES:-OFF}" \
         -DSSR_PC_ART="${SSR_PC_ART:-}" \
+        -DSSR_GBA_DIR="${SSR_GBA_DIR:-}" \
         -DSSR_JIT=ON
 elif [ ! -f "$BUILD/build.ninja" ]; then
     cmake -S . -B "$BUILD" -G Ninja \

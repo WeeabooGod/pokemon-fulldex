@@ -2,6 +2,15 @@
 
 ## Unreleased
 
+- **The game list opens on ALL, with a heading for each console (DS, GBA, 3DS)**, and tabs along
+  the top to show one console's games: L and R on the Switch, Q and E (or a controller's shoulder
+  buttons) on a PC, or a tap on the tab on a phone. There are no 3DS games yet: its tab says so.
+- **GBA games: Pokémon Emerald, FireRed, LeafGreen and Ultra Violet** in the same list, in
+  widescreen at 60 fps (Pokémon GBA Widescreen, built in). Put the ROMs in the same `roms` folder
+  (FireRed and LeafGreen version 1.0 or 1.1; Ultra Violet's `.gba`, or its `.ips` with a FireRed
+  1.0 ROM beside it); their saves go with the others (`emerald.sav` ...). Other GBA games play
+  too, without widescreen. QUIT GAME in a GBA game's pause menu comes back to the list.
+
 - **Windows: the taskbar shows the program's own icon.** A desktop shortcut to one game that was
   pinned (Platinum's, say) took over every window of the program, the game list's included, with
   that game's picture; the program and each game's shortcut now have their own place on the

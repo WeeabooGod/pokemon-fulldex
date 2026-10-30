@@ -131,6 +131,7 @@ inline bool WriteFile(const std::string& path, const std::vector<uint8_t>& data)
 inline std::string Title(const Launcher::Game& g)
 {
     if (const Launcher::KnownGame* k = Launcher::Known(g.code)) return k->name;
+    if (g.platform != Launcher::DS && !g.name.empty()) return Launcher::TitleCase(g.name); // (a GBA game)
     return "Pokemon DS " + g.code;
 }
 

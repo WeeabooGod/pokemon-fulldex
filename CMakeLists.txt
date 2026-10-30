@@ -354,6 +354,18 @@ if((SSR_PC_ALL_GAMES OR SSR_ALL_GAMES) AND SSR_PC_ART AND IS_DIRECTORY "${SSR_PC
     target_sources(ssrecomp PRIVATE "${CMAKE_CURRENT_BINARY_DIR}/pc_art.cpp")
     target_compile_definitions(ssrecomp PRIVATE SSR_PC_ART)
 endif()
+# GBA games too, in the all-games program: Pokemon GBA Widescreen built in (mGBA with its wide
+# renderer, and the widescreen patches for Emerald, FireRed, LeafGreen and Ultra Violet).
+# SSR_GBA_DIR is that project's folder, after its setup.sh has made what it needs (in
+# ~/pokemon-gba-wide, or GBAW_WORK); the list gets a GBA section and plays them
+# (frontend/gba_games.h, its frontend/embed.h). Empty: DS games only.
+set(SSR_GBA_DIR "" CACHE PATH "Pokemon GBA Widescreen's folder, to play GBA games too")
+if(SSR_GBA_DIR AND (SSR_PC_ALL_GAMES OR SSR_ALL_GAMES))
+    set(GBAW_EMBEDDED ON CACHE BOOL "" FORCE)
+    add_subdirectory("${SSR_GBA_DIR}" gbaw EXCLUDE_FROM_ALL)
+    target_link_libraries(ssrecomp PRIVATE gbawide)
+    target_compile_definitions(ssrecomp PRIVATE SSR_GBA)
+endif()
 # RetroAchievements: the library, and each platform's way to the internet (achievements_http.cpp);
 # the program's version, which the server is told with its name, from CHANGELOG.md's newest release.
 target_link_libraries(ssrecomp PRIVATE rcheevos)

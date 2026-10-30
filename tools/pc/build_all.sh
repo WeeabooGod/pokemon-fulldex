@@ -26,6 +26,7 @@
 # folder of your own with IREO.jpg, IRDO.jpg ... named as for the list's icons/ folder (optional).
 # The AppImage's icon: SSR_LINUX_ICON=your.jpg or .png (optional); it is made with appimagetool,
 # fetched once into build-pc-deps/, and zsyncmake (sudo apt install zsync) for its .zsync.
+# GBA games too: SSR_GBA_DIR, Pokemon GBA Widescreen's folder after its setup.sh (optional).
 set -euo pipefail
 
 HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
@@ -114,6 +115,11 @@ COMMON=(-G Ninja -DCMAKE_BUILD_TYPE=Release -DSSR_JIT=ON -DSSR_PC_ALL_GAMES=ON -
 ART="${SSR_PC_ART:-}"
 [ -n "$ART" ] && { [ -d "$ART" ] || fail "SSR_PC_ART: no such folder: $ART"; ART="$(realpath "$ART")"; say "Pictures for the game list: $ART"; }
 COMMON+=(-DSSR_PC_ART="$ART")
+# GBA games too (Pokemon GBA Widescreen built in): SSR_GBA_DIR, that project's folder, after its
+# setup.sh (which makes mGBA and the widescreen patches in ~/pokemon-gba-wide).
+GBA="${SSR_GBA_DIR:-}"
+[ -n "$GBA" ] && { [ -f "$GBA/frontend/embed.h" ] || fail "SSR_GBA_DIR: not Pokemon GBA Widescreen: $GBA"; GBA="$(realpath "$GBA")"; say "GBA games too: $GBA"; }
+COMMON+=(-DSSR_GBA_DIR="$GBA")
 mkdir -p build-pc-dist
 
 # The folder the player unpacks: the program, its function tables, an empty roms folder and the

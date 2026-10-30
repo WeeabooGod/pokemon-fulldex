@@ -24,6 +24,10 @@
 #undef STB_IMAGE_IMPLEMENTATION
 #include "launcher.h"
 #include "controls.h"
+#ifdef SSR_GBA
+#include <map>
+#include "gba_games.h" // Pokemon GBA Widescreen, built in: its GBA games (CMakeLists.txt, SSR_GBA_DIR)
+#endif
 #ifdef SSR_ALL_GAMES
 #define STB_IMAGE_WRITE_IMPLEMENTATION
 #define STBI_WRITE_NO_STDIO
@@ -78,6 +82,7 @@ bool RomfsReady()
 // build's).
 bool Playable(const Launcher::Game& g)
 {
+    if (g.platform == Launcher::GBA) return true; // (any GBA game plays, with widescreen or without)
     if (!g.known) return false;
     if (g.code == "IPGE" || g.code == "IPKE") return rc_num_chunks > 0;
     struct stat st;
@@ -132,7 +137,7 @@ std::string InstallHomeIcons(const std::vector<Launcher::Game>& games)
         done.push_back(g.code);
         SwitchForwarder::Entry e;
         const Launcher::KnownGame* k = Launcher::Known(g.code);
-        e.name = k ? k->name : g.name;
+        e.name = k ? k->name : Launcher::TitleCase(g.name);
         e.args = "--game " + g.code;
         // The icon: the player's own picture in icons/ if there is one, else the box art built
         // into the program, else the list's picture (a one-game program's icon can be a placeholder).
@@ -197,7 +202,10 @@ int PickGame(const std::vector<Launcher::Game>& games, int selected, const std::
     padInitializeDefault(&pad);
     Canvas canvas;
     canvas.Resize(1280, 720);
-    int first = 0, held = 0, result = -1, cols = 3;
+    // The tab shown (ALL first, the list opens on it), how far down it is scrolled; selected: a
+    // game in that tab, or -1 when it has none (Launcher::MakeView, Step).
+    int tab = 0, scroll = 0, held = 0, result = -1;
+    auto view = [&]() { return Launcher::MakeView(canvas, games, tab); };
     bool guide = false; // the settings page (Launcher::SettingsPage)
     Launcher::SettingsPage page;
     // The buttons changed in KEYS AND BUTTONS (controls.h): the list follows them (A plays, Y the
@@ -335,18 +343,30 @@ int PickGame(const std::vector<Launcher::Game>& games, int selected, const std::
         }
         else
         {
-            const bool step = held == 1 || (held > 20 && held % 6 == 0);
-            int to = selected;
-            if (step && lf) to = selected - 1;
-            if (step && rt) to = selected + 1;
-            if (step && up) to = selected - cols;
-            if (step && dn) to = std::min(selected + cols, (int)games.size() - 1);
-            if (to != selected && to >= 0 && to < (int)games.size())
+            // L and R (or the buttons CONTROLS gave them): the tabs, keeping the chosen game if
+            // it is in the new one.
+            const u64 tl = ctl.PadCustom() ? action(Controls::L) : (u64)HidNpadButton_L;
+            const u64 tr = ctl.PadCustom() ? action(Controls::R) : (u64)HidNpadButton_R;
+            if (down & (tl | tr))
             {
-                selected = to;
+                tab = (tab + ((down & tr) ? 1 : Launcher::TABS - 1)) % Launcher::TABS;
+                scroll = 0;
+                const Launcher::View v = view();
+                if (v.SpotOf(selected) < 0) selected = Launcher::FirstIn(v);
                 note.clear();
             }
-            if (down & (ctl.PadCustom() ? action(Controls::A) : (u64)HidNpadButton_A))
+            const bool step = held == 1 || (held > 20 && held % 6 == 0);
+            const int dir = !step ? 0 : lf ? 1 : rt ? 2 : up ? 3 : dn ? 4 : 0;
+            if (dir)
+            {
+                const int to = Launcher::Step(view(), selected, dir);
+                if (to >= 0 && to != selected)
+                {
+                    selected = to;
+                    note.clear();
+                }
+            }
+            if (selected >= 0 && (down & (ctl.PadCustom() ? action(Controls::A) : (u64)HidNpadButton_A)))
             {
                 if (Playable(games[selected]))
                 {
@@ -360,7 +380,7 @@ int PickGame(const std::vector<Launcher::Game>& games, int selected, const std::
         if (guide) page.Draw(canvas, page.group < 0 ? "UP / DOWN: CHOOSE    A: OPEN    B: BACK"
                                                     : "UP / DOWN: CHOOSE    LEFT / RIGHT / A: CHANGE    B: BACK");
         if (guide && keysOpen) keysMenu.Draw(canvas, "KEYS AND BUTTONS", keysCapture >= 0 ? "OR WAIT 5 SECONDS: AS IT WAS" : "A: CHANGE   B: BACK");
-        else cols = Launcher::Draw(canvas, games, selected, first, note);
+        else Launcher::Draw(canvas, games, tab, selected, scroll, note);
         u32 stride;
         u32* out = (u32*)framebufferBegin(&fb, &stride);
         for (int y = 0; y < 720; y++)
@@ -410,12 +430,32 @@ std::vector<Launcher::Game> FindGames(const std::string& dir, bool& ownFolder)
         }
         ownFolder = own > 0;
     }
+#ifdef SSR_GBA
+    // The GBA games: in this folder's roms (their saves beside the DS games'), and in Pokemon GBA
+    // Widescreen's own folder if it is on the card too (with its saves, so they carry on).
+    {
+        std::map<std::string, std::vector<uint32_t>> art;
+        const size_t before = games.size();
+        GbaGames::Add(dir + "/roms", dir, games, art);
+        const std::string gbaApp = "sdmc:/switch/pokemon-gba-wide";
+        struct stat st;
+        if (dir != gbaApp && stat((gbaApp + "/roms").c_str(), &st) == 0)
+        {
+            const size_t mine = games.size();
+            GbaGames::Add(gbaApp + "/roms", gbaApp + "/saves", games, art);
+            for (size_t i = mine; i < games.size(); i++)
+                for (size_t j = before; j < mine; j++)
+                    if (games[j].code == games[i].code) games[i].where = "IN GBA-WIDE";
+        }
+        ownFolder |= games.size() > before;
+    }
+#endif
 #endif
     Launcher::Sort(games);
     // The same game in two folders (two ROMs, two saves): each says where it is.
     for (size_t i = 0; i < games.size(); i++)
         for (size_t j = 0; j < games.size(); j++)
-            if (i != j && games[i].code == games[j].code && games[i].folder != dir)
+            if (i != j && games[i].platform == Launcher::DS && games[i].code == games[j].code && games[i].folder != dir)
             {
                 // (pokemon-black2-wide: IN BLACK2)
                 std::string name = games[i].folder.substr(games[i].folder.find_last_of('/') + 1);
@@ -633,6 +673,28 @@ bool Start(int& argc, char**& argv)
             }
             g_canChange = true;
         }
+    }
+#endif
+#ifdef SSR_GBA
+    // A GBA game (chosen in the list, which started the program again for it, or from its HOME
+    // Menu icon): played here, Pokemon GBA Widescreen built in; then the program starts again for
+    // the list, as QUIT does for a DS game.
+    if (games[chosen].platform == Launcher::GBA)
+    {
+        const Launcher::Game& game = games[chosen];
+        GbaWide::Options o;
+        o.roms = game.rom.substr(0, game.rom.find_last_of('/'));
+        o.saves = game.folder;
+        o.data = dir;
+        o.fullscreen = true;
+        fprintf(stderr, "[switch] GBA: %s, saves in %s\n", game.rom.c_str(), game.folder.c_str());
+        GbaWide::Play(game.rom, o);
+        if (!g_self.empty() && envHasNextLoad())
+        {
+            const std::string cmd = g_self.find(' ') == std::string::npos ? g_self : "\"" + g_self + "\"";
+            envSetNextLoad(g_self.c_str(), cmd.c_str());
+        }
+        return false;
     }
 #endif
     const Launcher::Game& game = games[chosen];
