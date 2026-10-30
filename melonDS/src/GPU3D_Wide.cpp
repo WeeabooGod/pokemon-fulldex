@@ -1094,6 +1094,27 @@ struct WideAccess
     static void Continue(Polygon* poly, int side, s32 nearX, s32 limit, s32 edge, bool layer)
     {
         const u32 n = poly->NumVertices;
+        // A layer of the distance whose end the DS screen shows part of really ends there, the
+        // game having cut it off nowhere: one of its end's corners past the screen's edge and the
+        // next, also in the outer half, on the screen by more than two DS pixels (a corner a few
+        // sixteenths inside the edge is where the DS's own clipping cut it: the fence running
+        // down beside the street below the lookout). Moving the first alone would make a wedge
+        // (the far hillside at Aspertia's lookout, its end running from inside the DS screen's
+        // right edge to past it: grass drawn over the cliff in a thin wedge to the view's edge,
+        // and only in the frames where the hillside counted as a layer, a flicker).
+        auto beyond = [&](u32 v) {
+            const s32 x = poly->Vertices[v]->HiresPosition[0];
+            return side == 1 ? x <= nearX && x < limit : x >= nearX && x > limit;
+        };
+        auto onScreen = [&](u32 v) {
+            const s32 x = poly->Vertices[v]->HiresPosition[0];
+            return side == 1 ? x <= nearX && x > limit + 32 : x >= nearX && x < limit - 32;
+        };
+        for (u32 v = 0; v < n && layer; v++)
+        {
+            const u32 w = (v + 1) % n;
+            if ((beyond(v) && onScreen(w)) || (onScreen(v) && beyond(w))) return;
+        }
         struct Corner { s32 x, y, z; float invW, s, t, r, g, b; s32 rs, rt; };
         Corner c[10];
         for (u32 v = 0; v < n; v++)
