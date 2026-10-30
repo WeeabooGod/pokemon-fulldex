@@ -3955,9 +3955,13 @@ int main(int argc, char** argv)
         M_CONTROLS, M_STARTBTN, M_FAST, M_FFLOWRES, M_SAVESTATE, M_LOADSTATE, M_RESET, M_QUIT,
         M_DISPLAY, M_SOUND, M_GRAPHICS, M_CONTROLMENU, M_BACK, M_CHEATS, M_NOTHING,
         M_VOLUME, M_RA, M_RA_ON, M_RA_ACCOUNT, M_RA_GAME, M_RA_LOGIN, M_RA_TYPED, M_RA_CANCEL, M_BOTHVER,
-        M_CHEAT0 = 1000 // (M_CHEAT0 + i: cheat i, CHEATS)
+        M_RA_LIST,
+        M_CHEAT0 = 1000, // (M_CHEAT0 + i: cheat i, CHEATS)
+        M_ACH0 = 30000   // (M_ACH0 + i: achievement i, ACHIEVEMENTS)
     };
-    enum { PAGE_MAIN, PAGE_KEYS, PAGE_DISPLAY, PAGE_GRAPHICS, PAGE_CONTROLS, PAGE_CHEATS, PAGE_RA, PAGE_SOUND };
+    enum { PAGE_MAIN, PAGE_KEYS, PAGE_DISPLAY, PAGE_GRAPHICS, PAGE_CONTROLS, PAGE_CHEATS, PAGE_RA, PAGE_SOUND, PAGE_RA_LIST };
+    // ACHIEVEMENTS (RETROACHIEVEMENTS' list): read from the set as the page opens.
+    std::vector<Achievements::Row> achList;
     // RETROACHIEVEMENTS' LOG IN: the user name typed (raTyping 1), then the password (2), on the
     // keyboard or a phone's on-screen one (SDL's text input). The password goes to the server once
     // and is then forgotten.
@@ -4116,6 +4120,15 @@ int main(int argc, char** argv)
                 add(M_CHEAT0 + (int)i, cheats.items[i].name.c_str(), cheats.items[i].on ? "ON" : "OFF");
             add(M_BACK, "BACK", "");
         }
+        else if (menuPage == PAGE_RA_LIST)
+        {
+            // Each one's title, its points or DONE; what it asks for in the strip under the box.
+            if (achList.empty()) add(M_NOTHING, "NONE LOADED", "", true);
+            for (size_t i = 0; i < achList.size(); i++)
+                add(M_ACH0 + (int)i, Cheats::Shown(achList[i].title, 22).c_str(),
+                    achList[i].unlocked ? "DONE" : std::to_string(achList[i].points) + " PTS", true);
+            add(M_BACK, "BACK", "");
+        }
         else if (menuPage == PAGE_RA)
         {
             if (raTyping)
@@ -4130,6 +4143,7 @@ int main(int argc, char** argv)
                 add(M_RA_ON, "RETROACHIEVEMENTS", onOff(cfg.ra.on));
                 add(M_RA_ACCOUNT, "ACCOUNT", Achievements::AccountLine(), true);
                 add(M_RA_GAME, "THIS GAME", cfg.ra.on ? Achievements::GameLine() : "-", true);
+                if (cfg.ra.on && Achievements::Active()) add(M_RA_LIST, "ACHIEVEMENTS", "");
                 add(M_RA_LOGIN, Achievements::LoggedIn() ? "LOG OUT" : "LOG IN", "");
                 add(M_BACK, "BACK", "");
             }
@@ -5288,7 +5302,7 @@ int main(int argc, char** argv)
             const int id = backTo >= 0 ? M_BACK : hit >= 0 && hit < (int)menuIds.size() ? menuIds[hit] : -1;
             if (backTo >= 0) hit = 0;
             // A cheat: on or off at once, for the game as it runs (cheats.h).
-            if (id >= M_CHEAT0)
+            if (id >= M_CHEAT0 && id < M_ACH0)
             {
                 cheats.Toggle((size_t)(id - M_CHEAT0));
                 cheats.Apply(nds->AREngine);
@@ -5315,6 +5329,11 @@ int main(int argc, char** argv)
                 // (WIDE MAP LOADING follows at the next start: the console is made with it.)
                 Achievements::SetOn(!cfg.ra.on);
                 if (bw2map.Supported() && cfg.wideMap) say(cfg.ra.on ? "WIDE MAP LOADING OFF FROM THE NEXT START" : "WIDE MAP LOADING BACK FROM THE NEXT START");
+                break;
+            case M_RA_LIST:
+                achList = Achievements::List();
+                goPage(PAGE_RA_LIST, -1);
+                hit = -1;
                 break;
             case M_RA_LOGIN:
                 if (Achievements::LoggedIn()) Achievements::Logout();
@@ -5349,6 +5368,12 @@ int main(int argc, char** argv)
                 hit = -1;
                 break;
             case M_BACK:
+                if (menuPage == PAGE_RA_LIST)
+                {
+                    goPage(PAGE_RA, M_RA_LIST);
+                    hit = -1;
+                    break;
+                }
                 if (backTo < 0)
                     backTo = menuPage == PAGE_DISPLAY ? M_DISPLAY : menuPage == PAGE_SOUND ? M_SOUND : menuPage == PAGE_GRAPHICS ? M_GRAPHICS
                            : menuPage == PAGE_CHEATS ? M_CHEATS : menuPage == PAGE_RA ? M_RA : M_CONTROLMENU;
@@ -6748,7 +6773,7 @@ int main(int argc, char** argv)
             std::string hint = touchPadUsed && touchPad.visible ? "TAP: CHOOSE   OUTSIDE: BACK"
                                : btn(Controls::A) + ": SELECT   " + btn(Controls::B) + ": BACK";
             const int selId = menu.selected >= 0 && menu.selected < (int)menuIds.size() ? menuIds[menu.selected] : -1;
-            static const char* pageTitle[] = { "", "KEYS AND BUTTONS", "DISPLAY", "GRAPHICS", "CONTROLS", "CHEATS", "RETROACHIEVEMENTS", "SOUND" };
+            static const char* pageTitle[] = { "", "KEYS AND BUTTONS", "DISPLAY", "GRAPHICS", "CONTROLS", "CHEATS", "RETROACHIEVEMENTS", "SOUND", "ACHIEVEMENTS" };
             if (menuPage == PAGE_KEYS)
             {
                 if (!(touchPadUsed && touchPad.visible)) hint = btn(Controls::A) + ": CHANGE   " + btn(Controls::B) + ": BACK";
@@ -6784,8 +6809,19 @@ int main(int argc, char** argv)
             if (selId == M_RA_LOGIN) hint = Achievements::LoggedIn() ? "FORGETS THE ACCOUNT HERE" : "YOUR USER NAME AND PASSWORD";
             if (selId == M_RA_TYPED)
                 hint = touchPadUsed ? "THEN TAP HERE OR DONE" : ctlHasKeyboard ? "ENTER: NEXT   ESC: CANCEL" : "TYPE IT  THEN A";
-            if (selId >= M_CHEAT0 && !(touchPadUsed && touchPad.visible)) hint = btn(Controls::A) + ": ON / OFF   " + btn(Controls::B) + ": BACK";
-            const std::string note = selId >= M_CHEAT0 && selId - M_CHEAT0 < (int)cheats.items.size() ? cheats.items[selId - M_CHEAT0].note : std::string();
+            if (selId >= M_CHEAT0 && selId < M_ACH0 && !(touchPadUsed && touchPad.visible)) hint = btn(Controls::A) + ": ON / OFF   " + btn(Controls::B) + ": BACK";
+            if (selId == M_RA_LIST) hint = "WHAT EACH ASKS FOR";
+            std::string note = selId >= M_CHEAT0 && selId < M_ACH0 && selId - M_CHEAT0 < (int)cheats.items.size() ? cheats.items[selId - M_CHEAT0].note : std::string();
+            if (menuPage == PAGE_RA_LIST)
+            {
+                hint = (touchPadUsed && touchPad.visible) ? "TAP OUTSIDE: BACK" : btn(Controls::B) + ": BACK";
+                if (selId >= M_ACH0 && selId - M_ACH0 < (int)achList.size())
+                {
+                    const Achievements::Row& r = achList[selId - M_ACH0];
+                    note = r.description + " (" + std::to_string(r.points) + " POINTS" + (r.unlocked ? ", UNLOCKED)" : ")");
+                    if (!r.unlocked && !r.progress.empty()) note += " SO FAR: " + r.progress;
+                }
+            }
             menu.Draw(canvas, pageTitle[menuPage], hint, note);
             }
             overlayUsed = true;

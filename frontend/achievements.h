@@ -60,6 +60,15 @@ std::string AccountLine(); // the user name, "NOT LOGGED IN", "LOGGING IN...", "
 std::string GameLine();    // "12 OF 50 UNLOCKED", "NONE FOR THIS ROM", "LOADING...", ...
 std::string Detail();      // what went wrong last (a login, the game's set), for a hint line
 bool LoggedIn();           // an account is kept (its token)
+// The game's achievements for the pause menu's ACHIEVEMENTS list: unlocked ones first, then the
+// rest, each as the set has them (empty until the set is loaded).
+struct Row
+{
+    std::string title, description, progress; // progress: "3/8" for one counted as it goes
+    uint32_t points = 0;
+    bool unlocked = false;
+};
+std::vector<Row> List();
 bool Busy();               // a login or the game's set is on its way
 
 // A login from the game list, with no game running (pc_launcher.cpp): the user name and password

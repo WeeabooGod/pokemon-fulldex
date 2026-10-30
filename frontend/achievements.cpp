@@ -457,6 +457,31 @@ bool PopMessage(std::string& message)
     return true;
 }
 
+std::vector<Row> List()
+{
+    std::vector<Row> unlocked, locked;
+    if (!g_client || !g_loaded) return unlocked;
+    rc_client_achievement_list_t* list =
+        rc_client_create_achievement_list(g_client, RC_CLIENT_ACHIEVEMENT_CATEGORY_CORE, RC_CLIENT_ACHIEVEMENT_LIST_GROUPING_LOCK_STATE);
+    if (!list) return unlocked;
+    for (uint32_t b = 0; b < list->num_buckets; b++)
+        for (uint32_t i = 0; i < list->buckets[b].num_achievements; i++)
+        {
+            const rc_client_achievement_t* a = list->buckets[b].achievements[i];
+            if (!a) continue;
+            Row r;
+            r.title = a->title ? a->title : "";
+            r.description = a->description ? a->description : "";
+            r.progress = a->measured_progress;
+            r.points = a->points;
+            r.unlocked = a->unlocked != RC_CLIENT_ACHIEVEMENT_UNLOCKED_NONE;
+            (r.unlocked ? unlocked : locked).push_back(std::move(r));
+        }
+    rc_client_destroy_achievement_list(list);
+    unlocked.insert(unlocked.end(), locked.begin(), locked.end());
+    return unlocked;
+}
+
 bool LoginForToken(const std::string& user, const std::string& password, const std::string& product,
                    std::string& outUser, std::string& outToken, std::string& error)
 {

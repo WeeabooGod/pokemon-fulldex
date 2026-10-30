@@ -83,6 +83,8 @@ not kept: the program keeps only the sign-in they send back. Unlocks pop up as y
 PC, a phone, a Mac or an iPhone you can also do this before playing, in the game list's
 **SETTINGS > RETROACHIEVEMENTS**.
 
+- **ACHIEVEMENTS** on that page lists the game's achievements: unlocked ones first, then the
+  rest with their points; what each asks for is shown under the list.
 - **Casual mode only:** save states, fast forward and cheats still work.
 - Achievements are paused while a cheat or OTHER VERSION POKEMON is on, and come back when
   they are off.
