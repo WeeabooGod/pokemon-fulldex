@@ -928,6 +928,20 @@ struct WideAccess
         return poly->Translucent || fmt == 1 || fmt == 6 || (fmt >= 2 && fmt <= 4 && (poly->TexParam & (1 << 29)));
     }
 
+    // What was decided for each polygon reaching past the DS screen's edge in the last real
+    // frame: continued (shown) or not, and for how many frames in a row since the rules have
+    // said otherwise (against). The rules below each have a threshold (something beside it over
+    // a third of its rows, a twelfth of the view from its edge, thin, continued too far), and as
+    // the camera moves a polygon can sit on one, continued in one frame and not the next: on
+    // the stairs to Aspertia's lookout the ground, a tree and a wall at the view's right edge
+    // flickered in and out as James walked up them, each by a different rule. So a polygon's
+    // decision only changes once the rules have said otherwise for HoldFrames real frames in a
+    // row, and an in-between frame follows the last real frame's.
+    struct Held { u32 tex; u8 n, side; bool shown; u8 against; s32 x0, x1, y0, y1; };
+    static inline std::vector<Held> HeldPrev, HeldNow;
+    static constexpr u8 HoldFrames = 4;
+    static bool Continued(const char* result) { return result[0] == 'c' || result[0] == 's'; }
+
     static void ExtendToEdges(Polygon** list, u32 count, float view, bool interp)
     {
         static const bool off = getenv("SSR_WIDE_NO_EXTEND") != nullptr; // (to compare)
@@ -939,7 +953,34 @@ struct WideAccess
         static u32 traceCall = 0;
         if (trace) traceCall++;
         static const bool log = getenv("SSR_WIDE_EXTEND_LOG") != nullptr; // (development aid)
-        if (off || !Wide.ExtendEdges) return;
+        static const bool hold = !getenv("SSR_WIDE_EXTEND_NO_HOLD"); // (to compare)
+        if (off || !Wide.ExtendEdges) { HeldPrev.clear(); return; }
+        if (!interp) HeldNow.clear();
+        static thread_local std::vector<u8> heldTaken;
+        heldTaken.assign(HeldPrev.size(), 0);
+        // Whether polygon i is shown continued on `side`, the rules wanting it or not (`want`).
+        auto decide = [&](u32 i, int side, bool want, s32 x0, s32 x1, s32 y0, s32 y1) {
+            const Polygon* poly = list[i];
+            s32 best = -1, bestD = 256 * 16 / 8;
+            for (u32 k = 0; k < HeldPrev.size(); k++)
+            {
+                const Held& h = HeldPrev[k];
+                if (heldTaken[k] || h.tex != poly->TexParam || h.n != poly->NumVertices || h.side != side) continue;
+                const s32 d = std::abs(h.x0 - x0) + std::abs(h.x1 - x1) + std::abs(h.y0 - y0) + std::abs(h.y1 - y1);
+                if (d < bestD) { bestD = d; best = (s32)k; }
+            }
+            bool shown = want;
+            u8 against = 0;
+            if (best >= 0)
+            {
+                heldTaken[best] = 1;
+                const Held& h = HeldPrev[best];
+                shown = h.shown;
+                if (!interp && want != shown && (against = h.against + 1) >= HoldFrames) { shown = want; against = 0; }
+            }
+            if (!interp) HeldNow.push_back({ poly->TexParam, (u8)poly->NumVertices, (u8)side, shown, against, x0, x1, y0, y1 });
+            return shown;
+        };
         constexpr s32 full = 256 * 16;      // the view's width in HiresPosition's units
         const s32 dsLeft = (s32)(full / 2 - (full / 2) * 256.0f / view), dsRight = full - dsLeft;
         const s32 gap = full / 12;
@@ -1013,11 +1054,11 @@ struct WideAccess
                     b.x0, b.x1, b.y0, b.y1, b.w0, b.w1, b.side, list[i]->Translucent ? 1 : 0, (list[i]->Attr >> 16) & 31,
                     list[i]->TexParam, list[i]->NumVertices);
             }
-        if (!any) return;
-        for (u32 i = 0; i < count; i++)
+        for (u32 i = 0; i < count && (any || hold); i++)
         {
             const Box b = boxes[i];
-            if (!b.side) continue;
+            if (!b.side && !hold) continue;
+            if (b.x1 < b.x0) continue;
             const bool layer = IsLayer(list[i], b.w0, b.w1, farW);
             const bool farBox = (s64)b.w1 * 10 >= (s64)farW * 9, distant = (s64)b.w1 * 10 >= (s64)farW * 6;
             // (A layer of the backdrop is not held back by anything small beside it, less than a
@@ -1049,7 +1090,22 @@ struct WideAccess
             };
             for (int side = 1; side <= 2; side++)
             {
-                if (!(b.side & side)) continue;
+                const s32 nearX = (b.x0 + b.x1) / 2, limit = side == 1 ? dsLeft : dsRight, edge = side == 1 ? 0 : full;
+                if (!(b.side & side))
+                {
+                    // (Not one the rules would continue now: past the DS screen's edge and short
+                    // of the view's, it may have been continued in the last frames.)
+                    const bool strip = side == 1 ? b.x0 > 0 && b.x0 < dsLeft : b.x1 < full && b.x1 > dsRight;
+                    if (hold && strip && decide(i, side, false, b.x0, b.x1, b.y0, b.y1))
+                    {
+                        const char* r = Continue(list[i], side, nearX, limit, edge, layer, 2);
+                        if (trace)
+                            fprintf(stderr, "[xt] %u %c %c %c tex %08x n %u x %d-%d y %d-%d w %d-%d far %d held-out-%s %d\n", traceCall, interp ? 'i' : 'r',
+                                side == 1 ? 'L' : 'R', layer ? 'F' : 'N', list[i]->TexParam, list[i]->NumVertices, b.x0, b.x1, b.y0, b.y1,
+                                b.w0, b.w1, farW, r, i);
+                    }
+                    continue;
+                }
                 // The strip between the polygon's end and the view's edge, over its rows.
                 const s32 sx0 = side == 1 ? 0 : b.x1 < full ? b.x1 : std::min(b.tr, b.br),
                           sx1 = side == 1 ? (b.x0 > 0 ? b.x0 : std::max(b.tl, b.bl)) : full;
@@ -1088,14 +1144,25 @@ struct WideAccess
                 if (log && blocker >= 0)
                     fprintf(stderr, "[extend]   beside it: polygon %d (x %d-%d, y %d-%d, w %d-%d)\n", blocker, boxes[blocker].x0, boxes[blocker].x1,
                         boxes[blocker].y0, boxes[blocker].y1, boxes[blocker].w0, boxes[blocker].w1);
-                const char* result = blocker >= 0 ? "blocked" :
-                    Continue(list[i], side, (b.x0 + b.x1) / 2, side == 1 ? dsLeft : dsRight, side == 1 ? 0 : full, layer);
+                const char* result = blocker >= 0 ? "blocked" : Continue(list[i], side, nearX, limit, edge, layer, hold ? 0 : 1);
+                if (hold)
+                {
+                    const bool want = Continued(result);
+                    if (decide(i, side, want, b.x0, b.x1, b.y0, b.y1))
+                    {
+                        const char* r = Continue(list[i], side, nearX, limit, edge, layer, want ? 1 : 2);
+                        if (!want) result = r[0] == 'c' ? "held-carried" : "held-stretched";
+                    }
+                    else if (want)
+                        result = "held-back";
+                }
                 if (trace)
                     fprintf(stderr, "[xt] %u %c %c %c tex %08x n %u x %d-%d y %d-%d w %d-%d far %d %s%s%d\n", traceCall, interp ? 'i' : 'r',
                         side == 1 ? 'L' : 'R', layer ? 'F' : 'N', list[i]->TexParam, list[i]->NumVertices, b.x0, b.x1, b.y0, b.y1,
-                        b.w0, b.w1, farW, result, blocker >= 0 ? " by " : "", blocker >= 0 ? blocker : (s32)i);
+                        b.w0, b.w1, farW, result, blocker >= 0 ? " by " : " ", blocker >= 0 ? blocker : (s32)i);
             }
         }
+        if (!interp) HeldPrev.swap(HeldNow);
     }
 
     // Moves a polygon's corners at one end (in its outer half, `nearX` being its middle, and
@@ -1108,7 +1175,9 @@ struct WideAccess
     // many times over), a texture that does not repeat and would be continued past its end
     // (its last column drawn over and over, a band of one colour: the clouds by the pier), or
     // one that ends exactly at the corner (below).
-    static const char* Continue(Polygon* poly, int side, s32 nearX, s32 limit, s32 edge, bool layer)
+    // mode 0: only says what would be done; 1: does it; 2: does it whatever the checks below say,
+    // the polygon having been continued in the last frames (HeldPrev).
+    static const char* Continue(Polygon* poly, int side, s32 nearX, s32 limit, s32 edge, bool layer, int mode)
     {
         const u32 n = poly->NumVertices;
         // A layer of the distance whose end the DS screen shows part of really ends there, the
@@ -1130,7 +1199,7 @@ struct WideAccess
         for (u32 v = 0; v < n && layer; v++)
         {
             const u32 w = (v + 1) % n;
-            if ((beyond(v) && onScreen(w)) || (onScreen(v) && beyond(w))) return "ends-on-screen";
+            if ((beyond(v) && onScreen(w)) || (onScreen(v) && beyond(w))) if (mode != 2) return "ends-on-screen";
         }
         struct Corner { s32 x, y, z; float invW, s, t, r, g, b; s32 rs, rt; };
         Corner c[10];
@@ -1237,8 +1306,8 @@ struct WideAccess
                     longest = std::max(longest, std::hypot((double)(c[u].x - a.x), (double)(c[u].y - a.y)));
             }
             const double thick = longest > 0 ? std::abs(area2) / longest : 0;
-            if (steep && thick < 256 * 16 / 12.0) return "thin-steep";
-            if (!layer && thick < 256 * 16 / 24.0) return "thin";
+            if (mode != 2 && steep && thick < 256 * 16 / 12.0) return "thin-steep";
+            if (mode != 2 && !layer && thick < 256 * 16 / 24.0) return "thin";
         }
         {
             s32 x0 = INT32_MAX, x1 = INT32_MIN;
@@ -1256,8 +1325,9 @@ struct WideAccess
                 fprintf(stderr, " carry %d added %d width %d%s\n", carry ? 1 : 0, added, x1 - x0,
                     (s64)added * (carry ? (layer && !steep ? 1 : 2) : 5) > (s64)(x1 - x0) ? " TOO FAR: left" : "");
             }
-            if ((s64)added * (carry ? (layer && !steep ? 1 : 2) : 5) > (s64)(x1 - x0)) return "too-far";
+            if (mode != 2 && (s64)added * (carry ? (layer && !steep ? 1 : 2) : 5) > (s64)(x1 - x0)) return "too-far";
         }
+        if (mode == 0) return carry ? (steep ? "carried-steep" : "carried") : "stretched";
         for (u32 v = 0; v < n; v++)
         {
             const bool out = side == 1 ? c[v].x <= nearX && c[v].x < limit : c[v].x >= nearX && c[v].x > limit;
