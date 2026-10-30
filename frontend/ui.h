@@ -109,11 +109,12 @@ struct Canvas
             { 0x00, 0x1F, 0x11, 0x11, 0x11, 0x1F, 0x00 },
             { 0x00, 0x04, 0x0A, 0x0A, 0x11, 0x1F, 0x00 },
             { 0x18, 0x19, 0x02, 0x04, 0x08, 0x13, 0x03 }, // % (VOLUME)
+            { 0x02, 0x1F, 0x10, 0x1E, 0x10, 0x10, 0x1F }, // \x05: E with an acute accent (POKEMON with it: POKE_ACUTE)
         };
         if (c >= 'a' && c <= 'z') c -= 32;
         if (c >= 'A' && c <= 'Z') return font[c - 'A'];
         if (c >= '0' && c <= '9') return font[26 + c - '0'];
-        static const char punct[] = ":-+./<>!()\x01\x02\x03\x04%";
+        static const char punct[] = ":-+./<>!()\x01\x02\x03\x04%\x05";
         const char* p = c ? strchr(punct, c) : nullptr;
         return p ? font[36 + (p - punct)] : nullptr;
     }

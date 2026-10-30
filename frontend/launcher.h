@@ -662,7 +662,7 @@ inline void Draw(Canvas& c, const std::vector<Game>& games, int tab, int selecte
     // A band along the top with the title.
     c.Fill(0, 0, c.w, 22 * s, th.band);
     c.Fill(0, 22 * s, c.w, th.bandLineH * s, th.bandLine);
-    const std::string title = "POKEMON FULLDEX"; // (Pokémon Fulldex: the font has no É)
+    const std::string title = "POK\x05MON FULLDEX"; // (Pokémon Fulldex: \x05 is the font's É, ui.h)
     c.Text((c.w - Canvas::TextWidth(title, s + 1)) / 2, 6 * s, title, s + 1, th.title);
     // The tabs: the chosen one bright and underlined.
     for (int t = 0; t < TABS; t++)
@@ -863,10 +863,10 @@ inline std::vector<Setting> SettingsList()
                   "THE GAME LIST'S COLOUR: ITS LINES, THE FRAME ROUND THE CHOSEN GAME AND THE TABS." });
 #ifdef __SWITCH__
     l.push_back({ "list_background", "BACKGROUND", { { "plain", "PLAIN" }, { "picture", "YOUR PICTURE" } }, "plain",
-                  "YOUR PICTURE: PUT A PICTURE NAMED BACKGROUND.JPG OR BACKGROUND.PNG IN /SWITCH/POKEMON-DS-WIDE/ (WITH YOUR SAVES). IT IS SHOWN DARKENED BEHIND THE GAMES." });
+                  "YOUR PICTURE: PUT A PICTURE NAMED BACKGROUND.JPG OR BACKGROUND.PNG IN /SWITCH/POKEMON-DS-WIDE/ (WITH YOUR SAVES). BEST AT 1280 X 720 OR 1920 X 1080 (16:9); ANY SIZE WORKS, CUT TO FILL THE SCREEN. IT IS SHOWN DARKENED BEHIND THE GAMES." });
 #else
     l.push_back({ "list_background", "BACKGROUND", { { "plain", "PLAIN" }, { "picture", "YOUR PICTURE" } }, "plain",
-                  "YOUR PICTURE: PUT A PICTURE NAMED BACKGROUND.JPG OR BACKGROUND.PNG BESIDE YOUR SAVES FOLDER. IT IS SHOWN DARKENED BEHIND THE GAMES." });
+                  "YOUR PICTURE: PUT A PICTURE NAMED BACKGROUND.JPG OR BACKGROUND.PNG BESIDE YOUR SAVES FOLDER. BEST AT 1920 X 1080 (16:9); ANY SIZE WORKS, CUT TO FILL THE SCREEN. IT IS SHOWN DARKENED BEHIND THE GAMES." });
 #endif
     // Only in the pause menu.
 #ifdef __SWITCH__

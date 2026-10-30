@@ -96,7 +96,9 @@ not kept: the program keeps only the sign-in they send back. Unlocks pop up as y
 - **BACKGROUND:** PLAIN, or YOUR PICTURE: a picture of yours behind the games, darkened so the
   names stay readable. Name it `background.jpg` or `background.png` and put it beside your
   `saves` folder (on the Switch: in `/switch/pokemon-ds-wide/`, with the saves; on Android: in
-  the folder with your ROMs).
+  the folder with your ROMs). Best at **1920 x 1080** (16:9; 1280 x 720 is plenty on the
+  Switch). Any size works: it is scaled to fill the screen, its edges cut if its shape differs.
+  Pictures over 2048 pixels on a side are read at a fraction of their size.
 
 ## Cheats
 

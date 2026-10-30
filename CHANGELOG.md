@@ -6,7 +6,8 @@
   round the chosen game and the tabs (red, blue, green, purple, gold, pink or teal). BACKGROUND:
   YOUR PICTURE shows a picture of yours behind the games, darkened so the names stay readable: name
   it `background.jpg` or `background.png` and put it beside your `saves` folder (on the Switch, in
-  `/switch/pokemon-ds-wide/` with the saves).
+  `/switch/pokemon-ds-wide/` with the saves). Best at 1920 x 1080; any size fills the screen.
+- **The game list's title reads POKÉMON FULLDEX**, with its É.
 - **A new name: Pokémon Fulldex**, now that it plays GBA games as well as DS ones. The app, the
   Switch's Homebrew Menu, the phone icons and the PC's window all show it; on Windows the program
   is `Pokemon Fulldex.exe` (DESKTOP SHORTCUTS: CREATE again for shortcuts to it). Nothing moves:
