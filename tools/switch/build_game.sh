@@ -184,24 +184,37 @@ all)
         SSR_SWITCH_ROMFS="$ROMFS" SSR_ALL_GAMES=ON SSR_PC_ART="$ART" SSR_NRO_TITLE="Pokémon Fulldex" bash tools/switch/build.sh
     mkdir -p build-sd/switch/pokemon-ds-wide/roms
     cp "$BUILD/ssrecomp.nro" build-sd/switch/pokemon-ds-wide/pokemon-ds-wide.nro
+    # The licences: this program's (GPL-3) and, with the GBA games built in, mGBA's (MPL-2.0).
+    cp LICENSE build-sd/switch/pokemon-ds-wide/LICENSE.txt
+    LICENCES="switch/pokemon-ds-wide/LICENSE.txt"
+    GBA_WORK="${GBAW_WORK:-$HOME/pokemon-gba-wide}"
+    if [ -n "${SSR_GBA_DIR:-}" ]; then
+        [ -f "$GBA_WORK/mgba/LICENSE" ] || fail "no mGBA in $GBA_WORK (Pokemon GBA Widescreen's setup.sh makes it; GBAW_WORK if elsewhere)"
+        cp "$GBA_WORK/mgba/LICENSE" build-sd/switch/pokemon-ds-wide/LICENSE-mGBA.txt
+        LICENCES="$LICENCES switch/pokemon-ds-wide/LICENSE-mGBA.txt"
+    else
+        rm -f build-sd/switch/pokemon-ds-wide/LICENSE-mGBA.txt
+    fi
     ZIP=pokemon-ds-wide-all-switch.zip
     rm -f "build-sd/$ZIP"
-    # The program and an empty roms folder, so that it is plain where the ROMs go.
+    # The program, its licences and an empty roms folder, so that it is plain where the ROMs go.
     (cd build-sd && python3 -c "
 import sys, zipfile
 with zipfile.ZipFile(sys.argv[1], 'w', zipfile.ZIP_DEFLATED) as z:
     z.write('switch/pokemon-ds-wide/pokemon-ds-wide.nro')
+    for f in sys.argv[2:]: z.write(f)
     d = zipfile.ZipInfo('switch/pokemon-ds-wide/roms/')
     d.external_attr = (0o40755 << 16) | 0x10  # a folder, for Unix and Windows unzippers
     z.writestr(d, '')
-" "$ZIP")
-    # (Only the program: no ROM, save, save state or generated code.)
+" "$ZIP" $LICENCES)
+    # (Only the program and its licences: no ROM, save, save state or generated code.)
     python3 -c "
 import sys, zipfile
 names = zipfile.ZipFile(sys.argv[1]).namelist()
-if names != ['switch/pokemon-ds-wide/pokemon-ds-wide.nro', 'switch/pokemon-ds-wide/roms/']: sys.exit('unexpected files in the zip: %s' % names)
+want = ['switch/pokemon-ds-wide/pokemon-ds-wide.nro'] + sys.argv[2:] + ['switch/pokemon-ds-wide/roms/']
+if names != want: sys.exit('unexpected files in the zip: %s' % names)
 print('zip holds:', ', '.join(names))
-" "build-sd/$ZIP"
+" "build-sd/$ZIP" $LICENCES
     say "Done: $HERE/build-sd/$ZIP"
     ls -l build-sd/switch/pokemon-ds-wide "build-sd/$ZIP"
     cat <<EOF

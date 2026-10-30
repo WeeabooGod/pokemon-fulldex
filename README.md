@@ -18,9 +18,11 @@ widescreen, 60 fps, up to 4K on a PC and 720p on the Switch.** No more squinting
 | **iPhone** and **iPad** (iOS 14 or newer, sideloaded) | [pokemon-ds-wide-ios.ipa](../../releases/download/ios-v1/pokemon-ds-wide-ios.ipa) | [iPhone](#on-an-iphone-or-ipad) |
 | **Nintendo Switch** (homebrew) | [pokemon-ds-wide-all-switch.zip](../../releases/download/all-games-v2/pokemon-ds-wide-all-switch.zip) | [Switch](#on-the-nintendo-switch) |
 
-**All seven games in every download:** Pokémon Black 2, White 2, Black, White, SoulSilver,
-HeartGold and Platinum. Pokémon Omega Ruby is in the works, as its own project. What's new
-in each: [Releases](../../releases).
+**All seven DS games in every download:** Pokémon Black 2, White 2, Black, White, SoulSilver,
+HeartGold and Platinum. **The GBA games too** on Windows, Linux, Android and the Switch:
+Pokémon Emerald, FireRed, LeafGreen and Ultra Violet ([below](#the-gba-games)). Pokémon Omega
+Ruby is in the works, as its own project: it is in the game list's 3DS tab, COMING SOON.
+What's new in each: [Releases](../../releases).
 
 One program per platform: start it and pick the game from the list. The
 downloads are free of the games themselves: you bring your own ROMs, and the
@@ -483,6 +485,19 @@ Please tell us how it runs on yours, with your model (see [Reporting a bug](#rep
 
 ---
 
+### The GBA games
+
+Pokémon Emerald, FireRed, LeafGreen and Ultra Violet (a FireRed hack) in widescreen at 60 fps,
+from [Pokémon GBA Widescreen](#credits-and-licence), built in (Windows, Linux, Android and the
+Switch; not yet on a Mac, iPhone or iPad).
+
+- **ROMs:** put them in the same `roms` folder as the DS games: Emerald, FireRed and LeafGreen
+  (version 1.0 or 1.1), and Ultra Violet as its `.gba` or as its `.ips` patch with a FireRed
+  1.0 ROM beside it. A `GBA` folder inside `roms` works too.
+- **Saves:** with the others (`emerald.sav` ...), or in that `GBA` folder's own `saves`.
+- Other GBA games play too, without widescreen. QUIT GAME in a GBA game's pause menu comes
+  back to the game list.
+
 ## Under the hood
 
 The widescreen world is drawn by a graphics chip: your graphics card with
@@ -554,7 +569,8 @@ symbol files), Platinum's from a build of
 addresses come from ssrecomp's own SoulSilver layout. The DS is emulated by [melonDS](https://melonds.kuribo64.net).
 The Switch's HOME MENU ICONS are made the way [sphaira](https://github.com/ITotalJustice/sphaira)
 makes its forwarders, with its homebrew loader (`tools/switch/forwarder`, GPL-3.0, based on
-nx-hbloader).
+nx-hbloader). The GBA games are played by Pokémon GBA Widescreen, built on
+[mGBA](https://mgba.io) (MPL-2.0: `LICENSE-mGBA.txt` in the downloads that have the GBA games).
 
 GPL-3.0-or-later (see `LICENSE`), as required by melonDS. Not affiliated with
 or endorsed by Nintendo, Game Freak, The Pokémon Company or the melonDS
