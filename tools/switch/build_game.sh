@@ -207,7 +207,7 @@ print('zip holds:', ', '.join(names))
     cat <<EOF
 
 Copy build-sd/switch to the root of the SD card, then your ROMs into /switch/pokemon-ds-wide/roms/ (any
-names; English Black, White, Black 2, White 2; SoulSilver and HeartGold US). Its list also shows
+names; English Black, White, Black 2, White 2; SoulSilver and HeartGold US$([ -n "${SSR_GBA_DIR:-}" ] && printf '; the GBA games, Emerald,\nFireRed, LeafGreen and Ultra Violet, there or in a GBA folder in it')). Its list also shows
 the games in the other folders of /switch (the one-game downloads), each with the save in its folder.
 On the Switch, hold R while starting any game and choose Pokemon DS Widescreen.
 The zip holds only the program, ready to share: nothing of the games.
