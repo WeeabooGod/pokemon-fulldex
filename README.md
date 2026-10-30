@@ -424,7 +424,8 @@ Please tell us how it runs on yours, with your model (see [Reporting a bug](#rep
 |---|---|
 | ![Platinum: Infernape against a wild Machoke, with FIGHT, BAG, RUN and POKÉMON beside the battle](docs/screenshots/platinum-infernape-battle.jpg) | ![Platinum: Snowpoint City in the snow, in widescreen](docs/screenshots/platinum-snowpoint.jpg) |
 
-- **ROM:** the English US version (game code `CPUE`), trimmed or not.
+- **ROM:** the English version, US or Europe (both game code `CPUE`), trimmed
+  or not.
 - **Save:** `platinum.sav`.
 - **What you get:** Sinnoh in widescreen, the snow and rain reaching the edges
   of the view; battles with their buttons and moves beside the action; the X
@@ -443,8 +444,7 @@ OLED in handheld mode; a PC has room to spare, and draws the same picture up to
 
 ## Known limits
 
-- Black, White, Black 2, White 2, SoulSilver and HeartGold: English (US or
-  Europe) versions only. Platinum: the US version only.
+- English versions only (US or Europe), for every game.
 - Platinum: the Pokétch (the watch on the touch screen) isn't shown during
   normal play; its apps are one press of the screen-swap button away.
 - SoulSilver and HeartGold: at map borders (Route 29 and New Bark Town, Celadon
@@ -482,8 +482,8 @@ version and the **`game.log`** file, which says what the program did:
 
 A screenshot or short video helps too. Please never attach your ROM. A white or
 black screen when a game starts usually means the ROM isn't one the program
-plays: an English copy of Black, White, Black 2, White 2, SoulSilver or
-HeartGold (US or Europe), or the English US copy of Platinum, unchanged (no
+plays: an English copy (US or Europe) of Black, White, Black 2, White 2,
+SoulSilver, HeartGold or Platinum, unchanged (no
 patches, translations, randomizers or trimming).
 
 ## Support
