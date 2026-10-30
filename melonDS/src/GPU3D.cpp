@@ -1639,10 +1639,20 @@ void GPU3D::BoxTest(const u32* params) noexcept
     // ssrecomp: with the widescreen world on, the test is made against the wide view, so
     // that the game also draws what is only visible beside the DS's own picture. This is
     // the one place where widescreen changes what the game itself sees.
+    //
+    // And against a view a tenth larger every way: the boxes games test are not always
+    // the whole of what is drawn (Black 2's rocks and lamp posts beside the stairs up to
+    // Aspertia City's lookout went out of the picture's bottom edge a few pixels before
+    // they had left it, and the trees and posts at the wide view's sides likewise), so
+    // things vanished, or appeared, while still in sight. What is beyond the view is cut
+    // off by the clipping as ever: it only costs the geometry engine a little more work.
     if (Wide.Owner == this && Wide.ViewWidth > 256)
     {
         for (int i = 0; i < 8; i++)
-            cube[i].Position[0] = (s32)((s64)cube[i].Position[0] * 256 / (s64)Wide.ViewWidth);
+        {
+            cube[i].Position[0] = (s32)((s64)cube[i].Position[0] * 256 * 9 / ((s64)Wide.ViewWidth * 10));
+            cube[i].Position[1] = (s32)((s64)cube[i].Position[1] * 9 / 10);
+        }
     }
 
     // front face (-Z)
