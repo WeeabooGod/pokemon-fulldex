@@ -8,7 +8,9 @@
 - **GBA games: Pokémon Emerald, FireRed, LeafGreen and Ultra Violet** in the same list, in
   widescreen at 60 fps (Pokémon GBA Widescreen, built in). Put the ROMs in the same `roms` folder
   (FireRed and LeafGreen version 1.0 or 1.1; Ultra Violet's `.gba`, or its `.ips` with a FireRed
-  1.0 ROM beside it); their saves go with the others (`emerald.sav` ...). Other GBA games play
+  1.0 ROM beside it); their saves go with the others (`emerald.sav` ...). A `GBA` folder inside
+  `roms` works too, with the saves in its own `saves` folder (as Pokémon GBA Widescreen keeps them
+  on a phone, so a game carries on). Other GBA games play
   too, without widescreen. QUIT GAME in a GBA game's pause menu comes back to the list.
 
 - **Windows: the taskbar shows the program's own icon.** A desktop shortcut to one game that was

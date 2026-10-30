@@ -431,12 +431,13 @@ std::vector<Launcher::Game> FindGames(const std::string& dir, bool& ownFolder)
         ownFolder = own > 0;
     }
 #ifdef SSR_GBA
-    // The GBA games: in this folder's roms (their saves beside the DS games'), and in Pokemon GBA
-    // Widescreen's own folder if it is on the card too (with its saves, so they carry on).
+    // The GBA games: in this folder's roms (their saves beside the DS games') and a GBA folder in
+    // it (with that folder's saves), and in Pokemon GBA Widescreen's own folder if it is on the
+    // card too (with its saves, so they carry on).
     {
         std::map<std::string, std::vector<uint32_t>> art;
         const size_t before = games.size();
-        GbaGames::Add(dir + "/roms", dir, games, art);
+        GbaGames::AddWithGbaFolder(dir + "/roms", dir, games, art);
         const std::string gbaApp = "sdmc:/switch/pokemon-gba-wide";
         struct stat st;
         if (dir != gbaApp && stat((gbaApp + "/roms").c_str(), &st) == 0)

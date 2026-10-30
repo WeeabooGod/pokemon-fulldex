@@ -286,8 +286,16 @@ std::vector<Launcher::Game> FindGames(const Folders& fo, std::map<std::string, s
         }
     }
 #ifdef SSR_GBA
-    // The GBA games in the same roms folder, their saves in saves/ too (emerald.sav ...).
-    GbaGames::Add(fo.roms, fo.saves, games, artCache);
+    // The GBA games in the same roms folder, their saves in saves/ too (emerald.sav ...); and in a
+    // GBA folder inside it, with that folder's saves.
+    const size_t ds = games.size();
+    GbaGames::AddWithGbaFolder(fo.roms, fo.saves, games, artCache);
+    static size_t gbaSeen = (size_t)-1; // (said when it changes: the folder is looked at every 1.5 s)
+    if (games.size() - ds != gbaSeen)
+    {
+        gbaSeen = games.size() - ds;
+        fprintf(stderr, "[launcher] GBA games: %zu in %s\n", gbaSeen, fo.roms.c_str());
+    }
 #endif
     Launcher::Sort(games);
     return games;
@@ -1213,8 +1221,8 @@ bool Start(int& argc, char**& argv)
                 fclose(f);
             }
             GbaWide::Options o;
-            o.roms = fo.roms;
-            o.saves = fo.saves;
+            o.roms = rom.substr(0, rom.find_last_of("/\\"));
+            o.saves = games[chosen].folder;
             o.data = fo.dir;
             o.fullscreen = ConfigFullscreen(fo.cfg, o.w, o.h);
             fprintf(stderr, "[launcher] GBA: %s\n", rom.c_str());

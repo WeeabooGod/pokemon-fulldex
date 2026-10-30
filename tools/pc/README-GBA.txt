@@ -2,7 +2,7 @@ GBA GAMES
 ---------
 
 The list plays Game Boy Advance games too, in widescreen (Pokemon GBA Widescreen, built in).
-Put your own ROMs (.gba files) in the same roms folder, any names:
+Put your own ROMs (.gba files) in the same roms folder, or a GBA folder inside it, any names:
 
   Pokemon Emerald (US)
   Pokemon FireRed and LeafGreen (US, version 1.0 or 1.1)
@@ -10,8 +10,9 @@ Put your own ROMs (.gba files) in the same roms folder, any names:
 
 Other GBA games play too, without widescreen. They are under GBA in the list (Q and E, or a
 controller's shoulder buttons, show one console's games). Their saves are in the saves folder
-(emerald.sav, firered.sav, leafgreen.sav, ultraviolet.sav); a .sav beside the ROM with the ROM's
-name is copied in the first time the game starts.
+(emerald.sav, firered.sav, leafgreen.sav, ultraviolet.sav), or for a GBA folder in its own saves
+folder (as Pokemon GBA Widescreen keeps them); a .sav beside the ROM with the ROM's name is copied
+in the first time the game starts.
 
 In a GBA game: arrow keys, X and Z for A and B, Enter START, Backspace SELECT, Q and W for L and
 R, Left Shift fast forward; a controller as printed, the right trigger to fast forward. Esc (or

@@ -2,8 +2,10 @@
 // The GBA games in the all-games list (launcher.h), from Pokemon GBA Widescreen built in
 // (embed.h, SSR_GBA): each as a Launcher::Game of the GBA section, with its box art.
 #ifdef SSR_GBA
+#include <dirent.h>
 #include <map>
 #include <string>
+#include <sys/stat.h>
 #include <vector>
 
 #include "embed.h"
@@ -49,6 +51,38 @@ inline void Add(const std::string& roms, const std::string& saves, std::vector<L
         }
         g.art = it->second;
         games.push_back(std::move(g));
+    }
+}
+
+// The GBA games in a roms folder (saves in saves), and in a GBA folder inside it (any case), as
+// Pokemon GBA Widescreen keeps its own on a phone: those with their saves in its saves folder, so
+// that they carry on. One that is in both is marked with where it is.
+inline void AddWithGbaFolder(const std::string& roms, const std::string& saves, std::vector<Launcher::Game>& games,
+                             std::map<std::string, std::vector<uint32_t>>& artCache)
+{
+    const size_t before = games.size();
+    Add(roms, saves, games, artCache);
+    const size_t mine = games.size();
+    std::vector<std::string> subs;
+    if (DIR* d = opendir(roms.c_str()))
+    {
+        while (dirent* e = readdir(d))
+        {
+            std::string n = e->d_name;
+            for (char& ch : n) ch = (char)tolower((unsigned char)ch);
+            struct stat st;
+            if (n == "gba" && stat((roms + "/" + e->d_name).c_str(), &st) == 0 && S_ISDIR(st.st_mode))
+                subs.push_back(roms + "/" + e->d_name);
+        }
+        closedir(d);
+    }
+    for (const std::string& sub : subs)
+    {
+        const size_t from = games.size();
+        Add(sub, sub + "/saves", games, artCache);
+        for (size_t i = from; i < games.size(); i++)
+            for (size_t j = before; j < mine; j++)
+                if (games[j].code == games[i].code) games[i].where = "IN GBA FOLDER";
     }
 }
 
