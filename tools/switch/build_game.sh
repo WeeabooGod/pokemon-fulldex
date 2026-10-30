@@ -170,6 +170,15 @@ all)
     icon="${SSR_SWITCH_ICON_ALL:-${SSR_SWITCH_ICON:-}}"
     rm -f "$BUILD/icon.jpg"
     [ -n "$icon" ] && install -D -m 644 "$icon" "$BUILD/icon.jpg"
+    # GBA games too (SSR_GBA_DIR: Pokemon GBA Widescreen's folder, after its setup.sh): with
+    # devkitPro installed or unpacked (DEVKITPRO), not its Docker image, which sees only this folder.
+    if [ -n "${SSR_GBA_DIR:-}" ]; then
+        [ -f "$SSR_GBA_DIR/frontend/embed.h" ] || fail "SSR_GBA_DIR: not Pokemon GBA Widescreen: $SSR_GBA_DIR"
+        [ -z "$DOCKER" ] || fail "GBA games too (SSR_GBA_DIR) needs devkitPro installed, not its Docker image: set DEVKITPRO (Pokemon GBA Widescreen's tools/switch/build.sh unpacks one)"
+        SSR_GBA_DIR="$(realpath "$SSR_GBA_DIR")"
+        export SSR_GBA_DIR
+        say "GBA games too: $SSR_GBA_DIR"
+    fi
     say "Compiling for the Switch"
     build SSR_SWITCH_JIT=1 SSR_SWITCH_GEN="$HERE/build-gen-tables" SSR_SWITCH_BUILD="$BUILD" \
         SSR_SWITCH_ROMFS="$ROMFS" SSR_ALL_GAMES=ON SSR_PC_ART="$ART" SSR_NRO_TITLE="Pokemon DS Widescreen" bash tools/switch/build.sh
