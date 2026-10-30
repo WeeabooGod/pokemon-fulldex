@@ -384,7 +384,107 @@ struct Theme
     int bandLineH = 1;       // the band's line, in font pixels
     int frameW = 2;          // the chosen game's frame, in font pixels
     uint32_t selBar = 0;     // a bar under the chosen game's name (0: none)
+    struct Background* background = nullptr; // a picture behind the list (BACKGROUND: YOUR PICTURE)
 };
+
+// The player's own picture behind the list (background.jpg or .png beside the saves folder; on
+// the Switch, with the saves): kept as read, and once fitted to the canvas, darkened so the
+// names stay readable.
+struct Background
+{
+    std::vector<uint32_t> px;
+    int w = 0, h = 0;
+    std::vector<uint32_t> fit;
+    int fw = 0, fh = 0;
+    // The picture covering a w x h canvas (cut at the sides or top and bottom), or nullptr.
+    const uint32_t* Fitted(int cw, int ch)
+    {
+        if (px.empty() || cw <= 0 || ch <= 0) return nullptr;
+        if (fw == cw && fh == ch) return fit.data();
+        fit.assign((size_t)cw * ch, 0);
+        const double sc = std::max((double)cw / w, (double)ch / h);
+        const int ox = (int)((w * sc - cw) / 2), oy = (int)((h * sc - ch) / 2);
+        for (int y = 0; y < ch; y++)
+        {
+            const int sy = std::min(h - 1, (int)((y + oy) / sc));
+            for (int x = 0; x < cw; x++)
+            {
+                const uint32_t p = px[(size_t)sy * w + std::min(w - 1, (int)((x + ox) / sc))];
+                // (A third of its brightness: the grey names stayed hard to read on a bright one
+                // at two fifths.)
+                const uint32_t r = (p >> 16 & 0xFF) / 3, g = (p >> 8 & 0xFF) / 3, b = (p & 0xFF) / 3;
+                fit[(size_t)y * cw + x] = 0xFF000000u | r << 16 | g << 8 | b;
+            }
+        }
+        fw = cw;
+        fh = ch;
+        return fit.data();
+    }
+};
+
+// The accent colour of the list (COLOUR on the settings page): the band's line, the chosen
+// game's frame and its save line.
+inline Theme ThemeNamed(const std::string& colour)
+{
+    Theme t;
+    static const struct { const char* name; uint32_t argb; } colours[] = {
+        { "red", 0xFFE0242C }, { "blue", 0xFF2A7BE0 }, { "green", 0xFF2EB85C }, { "purple", 0xFF9B4DE0 },
+        { "gold", 0xFFE0A82C }, { "pink", 0xFFE0479A }, { "teal", 0xFF1FB5A8 },
+    };
+    for (const auto& c : colours)
+        if (colour == c.name) t.bandLine = t.frame = t.subSel = c.argb;
+    return t;
+}
+
+// A setting's value in a settings file ("" when it has none).
+inline std::string ConfigValue(const std::string& cfg, const char* key)
+{
+    std::string out;
+    if (FILE* f = fopen(cfg.c_str(), "r"))
+    {
+        char buf[512];
+        const size_t n = strlen(key);
+        while (fgets(buf, sizeof buf, f))
+            if (!strncmp(buf, key, n) && buf[n] == '=')
+            {
+                out = buf + n + 1;
+                while (!out.empty() && (out.back() == '\n' || out.back() == '\r')) out.pop_back();
+            }
+        fclose(f);
+    }
+    return out;
+}
+
+// The list's look from the settings file (COLOUR, BACKGROUND): the picture read from `folder`
+// (background.jpg or .png), at most 2048 pixels on a side (larger ones are read at a fraction).
+inline void LoadLook(const std::string& cfg, const std::string& folder, Theme& t, Background& b)
+{
+    t = ThemeNamed(ConfigValue(cfg, "list_colour"));
+    b = Background();
+    t.background = nullptr;
+    if (ConfigValue(cfg, "list_background") != "picture") return;
+    std::vector<unsigned char> data;
+    for (const char* name : { "/background.jpg", "/background.png", "/background.jpeg" })
+    {
+        if (!ReadFile(folder + name, data)) continue;
+        int w = 0, h = 0, n = 0;
+        unsigned char* px = stbi_load_from_memory(data.data(), (int)data.size(), &w, &h, &n, 4);
+        if (!px) continue;
+        const int step = std::max(1, (std::max(w, h) + 2047) / 2048);
+        b.w = w / step;
+        b.h = h / step;
+        b.px.resize((size_t)b.w * b.h);
+        for (int y = 0; y < b.h; y++)
+            for (int x = 0; x < b.w; x++)
+            {
+                const unsigned char* p = px + ((size_t)y * step * w + (size_t)x * step) * 4;
+                b.px[(size_t)y * b.w + x] = 0xFF000000u | p[0] << 16 | p[1] << 8 | p[2];
+            }
+        stbi_image_free(px);
+        t.background = &b;
+        return;
+    }
+}
 
 // Where the list's parts go on a canvas: the title band, the tabs under it, then the games'
 // tiles (each the game's picture with its name below), four across at most, in a part of their
@@ -557,6 +657,8 @@ inline void Draw(Canvas& c, const std::vector<Game>& games, int tab, int selecte
     const Grid& grid = v.g;
     const int s = grid.s;
     c.Fill(0, 0, c.w, c.h, th.bg);
+    if (th.background)
+        if (const uint32_t* bgPx = th.background->Fitted(c.w, c.h)) std::copy(bgPx, bgPx + (size_t)c.w * c.h, c.px.begin());
     // A band along the top with the title.
     c.Fill(0, 0, c.w, 22 * s, th.band);
     c.Fill(0, 22 * s, c.w, th.bandLineH * s, th.bandLine);
@@ -755,6 +857,17 @@ inline std::vector<Setting> SettingsList()
     l.push_back({ "!forwarders", "HOME MENU ICONS", { { "", "INSTALL" } }, "",
                   "PUTS AN ICON FOR EACH GAME IN THIS LIST ON THE HOME MENU WITH ITS PICTURE. IT STARTS THAT GAME STRAIGHT AWAY. MADE ON THIS CONSOLE: NO PC OR KEYS FILE NEEDED. LIKE ANY FORWARDER THE ICONS NEED SIGPATCHES TO START. INSTALL AGAIN AFTER ADDING GAMES. REMOVE ONE IN THE HOME MENU (OPTIONS / DELETE SOFTWARE)." });
 #endif
+    // The game list's own look (GAME LIST: ThemeNamed, Background).
+    l.push_back({ "list_colour", "COLOUR", { { "red", "RED" }, { "blue", "BLUE" }, { "green", "GREEN" }, { "purple", "PURPLE" },
+                  { "gold", "GOLD" }, { "pink", "PINK" }, { "teal", "TEAL" } }, "red",
+                  "THE GAME LIST'S COLOUR: ITS LINES, THE FRAME ROUND THE CHOSEN GAME AND THE TABS." });
+#ifdef __SWITCH__
+    l.push_back({ "list_background", "BACKGROUND", { { "plain", "PLAIN" }, { "picture", "YOUR PICTURE" } }, "plain",
+                  "YOUR PICTURE: PUT A PICTURE NAMED BACKGROUND.JPG OR BACKGROUND.PNG IN /SWITCH/POKEMON-DS-WIDE/ (WITH YOUR SAVES). IT IS SHOWN DARKENED BEHIND THE GAMES." });
+#else
+    l.push_back({ "list_background", "BACKGROUND", { { "plain", "PLAIN" }, { "picture", "YOUR PICTURE" } }, "plain",
+                  "YOUR PICTURE: PUT A PICTURE NAMED BACKGROUND.JPG OR BACKGROUND.PNG BESIDE YOUR SAVES FOLDER. IT IS SHOWN DARKENED BEHIND THE GAMES." });
+#endif
     // Only in the pause menu.
 #ifdef __SWITCH__
     l.push_back({ nullptr, "THE PAUSE MENU", {}, "", "PRESS + WHILE PLAYING (+ AND - TOGETHER WITH START BUTTON ON DS START). EVERYTHING ABOVE IS THERE TOO AND CAN BE CHANGED AS YOU PLAY." });
@@ -817,14 +930,16 @@ inline const std::vector<SettingsGroup>& SettingsGroups()
         { "!group2", "GRAPHICS", "" },
         { "!group3", "CONTROLS", "" },
         { "!group4", "SHORTCUTS", "" },
-        { "!group5", "HELP", "" },
+        { "!group5", "GAME LIST", "" },
+        { "!group6", "HELP", "" },
     };
     return g;
 }
 // Which group an option is in (SettingsGroups).
 inline int GroupOf(const Setting& s)
 {
-    if (!s.key) return !strcmp(s.name, "KEYS AND BUTTONS") ? 3 : 5;
+    if (!s.key) return !strcmp(s.name, "KEYS AND BUTTONS") ? 3 : 6;
+    if (!strncmp(s.key, "list_", 5)) return 5;
     static const char* display[] = { "view", "large_screen", "fullscreen", "smooth", "battle_buttons", "show_fps" };
     static const char* controls[] = { "start_button", "buttons", "pad_touch" };
     for (const char* k : display)

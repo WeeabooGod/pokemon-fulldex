@@ -245,8 +245,15 @@ int PickGame(const std::vector<Launcher::Game>& games, int selected, const std::
 #ifdef SSR_ALL_GAMES
     bool installIcons = false; // (HOME MENU ICONS chosen: done after INSTALLING is on the screen)
 #endif
+    // The list's look (GAME LIST on the settings page: COLOUR, and BACKGROUND, a picture in this
+    // folder), read again when one of them changes.
+    const std::string listDir = cfgPath.substr(0, cfgPath.find_last_of('/'));
+    Launcher::Theme theme;
+    Launcher::Background background;
+    Launcher::LoadLook(cfgPath, listDir, theme, background);
     auto change = [&](int d) {
         const char* key = page.Change(d);
+        if (key && !strncmp(key, "list_", 5)) Launcher::LoadLook(cfgPath, listDir, theme, background);
         if (key && !strcmp(key, "!keys"))
         {
             ctl.Load(cfgPath);
@@ -440,14 +447,14 @@ int PickGame(const std::vector<Launcher::Game>& games, int selected, const std::
         if (guide)
         {
             page.Draw(canvas, page.group < 0 ? "UP / DOWN: CHOOSE    A: OPEN    B: BACK"
-                                             : "UP / DOWN: CHOOSE    LEFT / RIGHT / A: CHANGE    B: BACK");
+                                             : "UP / DOWN: CHOOSE    LEFT / RIGHT / A: CHANGE    B: BACK", theme);
             if (keysOpen) keysMenu.Draw(canvas, "KEYS AND BUTTONS", keysCapture >= 0 ? "OR WAIT 5 SECONDS: AS IT WAS" : "A: CHANGE   B: BACK");
         }
-        else Launcher::Draw(canvas, games, tab, onSettings || onTabs ? -1 : selected, scroll, note, std::string(), Launcher::Theme(), true, onTabs);
+        else Launcher::Draw(canvas, games, tab, onSettings || onTabs ? -1 : selected, scroll, note, std::string(), theme, true, onTabs);
         {
             // The title band's buttons, as pc_launcher.cpp draws them (the chosen one framed).
             const int s = std::max(1, canvas.h / 240);
-            const Launcher::Theme th;
+            const Launcher::Theme& th = theme;
             auto button = [&](int x, const char* text, bool on) {
                 if (on) canvas.Fill(x - 3 * s, 4 * s, Canvas::TextWidth(text, s) + 5 * s, 13 * s, th.frame);
                 canvas.Text(x, 7 * s, text, s, on ? th.title : th.hint);

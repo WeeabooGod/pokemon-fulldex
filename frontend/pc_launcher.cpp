@@ -522,8 +522,14 @@ int PickGame(Folders& fo, std::vector<Launcher::Game>& games, int selected, bool
         if (hit >= 0) keysActivate(hit);
         return true;
     };
+    // The list's look (GAME LIST on the settings page: COLOUR, BACKGROUND), read again when one
+    // of them changes or the ROM folder (where a phone's picture is) does.
+    Launcher::Theme theme;
+    Launcher::Background background;
+    Launcher::LoadLook(fo.cfg, fo.art, theme, background);
     auto change = [&](int d) {
         const char* key = page.Change(d);
+        if (key && !strncmp(key, "list_", 5)) Launcher::LoadLook(fo.cfg, fo.art, theme, background);
         if (key && !strcmp(key, "!keys"))
         {
             ctl.Load(fo.cfg);
@@ -1019,6 +1025,7 @@ int PickGame(Folders& fo, std::vector<Launcher::Game>& games, int selected, bool
             if (!needFolder)
             {
                 MakeDir(fo.saves);
+                Launcher::LoadLook(fo.cfg, fo.art, theme, background);
                 lastScan = 0;
                 fprintf(stderr, "[launcher] ROM folder %s\n", fo.roms.c_str());
             }
@@ -1075,7 +1082,6 @@ int PickGame(Folders& fo, std::vector<Launcher::Game>& games, int selected, bool
                                    : padIn ? "UP / DOWN: CHOOSE    LEFT / RIGHT / " + btn(Controls::A) + ": CHANGE    " + btn(Controls::B) + ": BACK"
                                            : std::string("UP / DOWN: CHOOSE    LEFT / RIGHT / ENTER: CHANGE    ESC: BACK");
 #endif
-        static const Launcher::Theme theme;
         if (guide)
         {
             page.Draw(canvas, pageHint, theme);

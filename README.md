@@ -87,6 +87,17 @@ not kept: the program keeps only the sign-in they send back. Unlocks pop up as y
 - With it on, WIDE MAP LOADING (Black, White, Black 2, White 2) stays off, so achievements
   read the game's memory as on a DS.
 
+## The game list's look
+
+**SETTINGS > GAME LIST** in the game list:
+
+- **COLOUR:** its lines, the frame round the chosen game and the tabs: red, blue, green,
+  purple, gold, pink or teal.
+- **BACKGROUND:** PLAIN, or YOUR PICTURE: a picture of yours behind the games, darkened so the
+  names stay readable. Name it `background.jpg` or `background.png` and put it beside your
+  `saves` folder (on the Switch: in `/switch/pokemon-ds-wide/`, with the saves; on Android: in
+  the folder with your ROMs).
+
 ## Cheats
 
 Action Replay codes, turned on and off as you play: **CHEATS** in the pause menu. They go

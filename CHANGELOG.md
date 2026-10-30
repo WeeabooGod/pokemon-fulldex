@@ -2,6 +2,11 @@
 
 ## Unreleased
 
+- **The game list's own look: GAME LIST on its settings page.** COLOUR changes its lines, the frame
+  round the chosen game and the tabs (red, blue, green, purple, gold, pink or teal). BACKGROUND:
+  YOUR PICTURE shows a picture of yours behind the games, darkened so the names stay readable: name
+  it `background.jpg` or `background.png` and put it beside your `saves` folder (on the Switch, in
+  `/switch/pokemon-ds-wide/` with the saves).
 - **A new name: Pokémon Fulldex**, now that it plays GBA games as well as DS ones. The app, the
   Switch's Homebrew Menu, the phone icons and the PC's window all show it; on Windows the program
   is `Pokemon Fulldex.exe` (DESKTOP SHORTCUTS: CREATE again for shortcuts to it). Nothing moves:
