@@ -1191,19 +1191,29 @@ struct WideAccess
         // down beside the street below the lookout). Moving the first alone would make a wedge
         // (the far hillside at Aspertia's lookout, its end running from inside the DS screen's
         // right edge to past it: grass drawn over the cliff in a thin wedge to the view's edge,
-        // and only in the frames where the hillside counted as a layer, a flicker).
+        // and only in the frames where the hillside counted as a layer, a flicker). So for a
+        // layer the corners of its end within a twelfth of the view inside the DS screen's edge
+        // are moved out too, the whole end: the game left out the layer's next panel, which
+        // would have filled that corner of the DS screen as well. (Left where they were, the
+        // white mountain at the lookout, its end's lower corner a little inside the edge,
+        // stopped in a slanted cut near the view's right edge as the camera moved, the sky
+        // beyond.) A corner further inside means the layer really ends there.
+        const s32 inside = layer ? 256 * 16 / 12 : 0;
+        auto isOut = [&](s32 x) {
+            return side == 1 ? x <= nearX && x < limit + inside : x >= nearX && x > limit - inside;
+        };
         auto beyond = [&](u32 v) {
             const s32 x = poly->Vertices[v]->HiresPosition[0];
             return side == 1 ? x <= nearX && x < limit : x >= nearX && x > limit;
         };
-        auto onScreen = [&](u32 v) {
+        auto deepInside = [&](u32 v) {
             const s32 x = poly->Vertices[v]->HiresPosition[0];
-            return side == 1 ? x <= nearX && x > limit + 32 : x >= nearX && x < limit - 32;
+            return side == 1 ? x <= nearX && x >= limit + inside : x >= nearX && x <= limit - inside;
         };
         for (u32 v = 0; v < n && layer; v++)
         {
             const u32 w = (v + 1) % n;
-            if ((beyond(v) && onScreen(w)) || (onScreen(v) && beyond(w))) if (mode != 2) return "ends-on-screen";
+            if ((beyond(v) && deepInside(w)) || (deepInside(v) && beyond(w))) if (mode != 2) return "ends-on-screen";
         }
         struct Corner { s32 x, y, z; float invW, s, t, r, g, b; s32 rs, rt; };
         Corner c[10];
@@ -1227,7 +1237,7 @@ struct WideAccess
         for (u32 v = 0; v < n && carry; v++)
         {
             const Corner& o = c[v];
-            m[v].out = side == 1 ? o.x <= nearX && o.x < limit : o.x >= nearX && o.x > limit;
+            m[v].out = isOut(o.x);
             if (!m[v].out) continue;
             // The neighbour furthest inwards: the other end of the polygon's top or bottom edge.
             const Corner& a = c[(v + n - 1) % n];
@@ -1253,13 +1263,23 @@ struct WideAccess
             // A texture that ends exactly at the corner, at a whole number of its repeats (Castelia's
             // sky: each panel one repeat of its own picture), goes on in the panel beside it,
             // which the game left out and which may show another picture: carried on, it starts
-            // again with a seam where the polygon ended. Stretched, it has none.
+            // again with a seam where the polygon ended. Stretched, it has none. (Unless the
+            // polygon itself shows the picture over more than once: then it repeats without a
+            // seam, and stretched it would change shape as the camera moved, the mountains on
+            // the left of the view from Aspertia's lookout.)
             if (textured)
             {
                 const bool alongS = std::abs(o.rs - in.rs) >= std::abs(o.rt - in.rt);
                 const s32 size = alongS ? (s32)sMax : (s32)tMax, at0 = alongS ? o.rs : o.rt;
                 const s32 phase = ((at0 % size) + size) % size;
-                if (phase < 16 || phase > size - 16)
+                s32 lo = INT32_MAX, hi = INT32_MIN;
+                for (u32 u = 0; u < n; u++)
+                {
+                    lo = std::min(lo, alongS ? c[u].rs : c[u].rt);
+                    hi = std::max(hi, alongS ? c[u].rs : c[u].rt);
+                }
+                const bool repeats = (tp & (1 << (alongS ? 16 : 17))) && hi - lo > size + 16;
+                if (!repeats && (phase < 16 || phase > size - 16))
                 {
                     carry = false;
                     break;
@@ -1334,7 +1354,7 @@ struct WideAccess
         if (mode == 0) return carry ? (steep ? "carried-steep" : "carried") : "stretched";
         for (u32 v = 0; v < n; v++)
         {
-            const bool out = side == 1 ? c[v].x <= nearX && c[v].x < limit : c[v].x >= nearX && c[v].x > limit;
+            const bool out = isOut(c[v].x);
             if (!out) continue;
             Vertex* p = poly->Vertices[v];
             p->HiresPosition[0] = edge;
