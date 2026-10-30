@@ -2299,6 +2299,13 @@ int main(int argc, char** argv)
                 fclose(rf);
             }
             bw2map.Init(code, funcWatch, bw2Names, *nds, cfg.wide && cfg.wideMap && !AchievementsOn);
+            // OTHER VERSION POKEMON (exclusives.h): Black, White, Black 2 and White 2.
+            if (!opt.lockstep)
+            {
+                exclusives.Init(code, funcWatch, bw2Names, *nds);
+                exclusives.on = cfg.bothVersions && exclusives.Supported();
+                if (exclusives.on) Achievements::SetCheats(true);
+            }
         }
         // Only these are watched (all functions for --trace-funcs).
         funcWatch.Attach(*nds, opt.traceFuncsAt.empty() ? bw2Names : std::vector<std::string>());

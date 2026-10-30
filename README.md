@@ -378,6 +378,12 @@ Please tell us how it runs on yours, with your model (see [Reporting a bug](#rep
   program says so instead of starting.
 - **Saves:** `black2.sav` and `white2.sav` (`tools/bw2/convert_save.py` turns
   `.dsv` and Action Replay saves into the raw 512 KB save).
+- **No version exclusives:** OTHER VERSION POKEMON in the pause menu (off to
+  start): wherever one version has an exclusive (Gothita, Cottonee, Vullaby,
+  Heracross, Magby...), each encounter there is as likely to be the other
+  version's in the same spot (Solosis, Petilil, Rufflet, Pinsir, Elekid...), at
+  its rates and levels. Legendary Pokémon stay with their own version, as do the
+  Hidden Grottos. RetroAchievements are paused while it is on.
 - **What you get:** battles (single, double, triple, rotation) with the HP boxes
   at the edges of the wide view and the battle buttons beside them; menus, the
   bag and the save screen laid out for one screen; and more of the map loaded
@@ -419,6 +425,10 @@ Please tell us how it runs on yours, with your model (see [Reporting a bug](#rep
 - **Saves:** `black.sav` and `white.sav` (the same format, so either game reads
   the other's; `tools/bw2/convert_save.py` turns `.dsv` and Action Replay saves
   into the raw 512 KB save).
+- **No version exclusives:** OTHER VERSION POKEMON in the pause menu (off to
+  start), as in Black 2 and White 2: Gothita or Solosis, Cottonee or Petilil,
+  Vullaby or Rufflet, Murkrow or Misdreavus, and the rest, each encounter as
+  likely to be either. Legendary Pokémon stay with their own version.
 - **What you get:** Unova's first adventure with the same treatment as Black 2:
   battles (single, double, triple, rotation) with the HP boxes at the edges of
   the wide view and the battle buttons beside them; its own layouts for the
