@@ -1324,6 +1324,8 @@ struct Settings
     // second, so a faster fast forward where drawing it is the limit). Off on a PC (the PC
     // defaults below), where it is a setting: FAST FORWARD LOW RES.
     bool ffLowRes = true;
+    // VOLUME: the game's sound and music, 0 (off) to 100 in tens.
+    int volume = 100;
     bool cpuBoost = true; // Switch only: the processor's boost mode (see SwitchPlatform)
     bool jit = true;      // Switch, games that are not recompiled: melonDS's JIT (read at start-up)
     bool fastMem = true;  // ... and its fast memory (also read at start-up)
@@ -1392,6 +1394,7 @@ struct Settings
             else if (k == "fps60") fps60 = v == "1";
             else if (k == "pad_touch") padTouch = v == "1";
             else if (k == "show_fps") showFps = v == "1";
+            else if (k == "volume") volume = std::clamp(atoi(v.c_str()) / 10 * 10, 0, 100);
             else if (k == "ff_low_res") ffLowRes = v == "1";
             else if (k == "start_button") startMenu = v != "ds";
             else if (k == "cpu_boost") cpuBoost = v == "1";
@@ -1439,6 +1442,7 @@ struct Settings
         f << "pad_touch=" << (padTouch ? 1 : 0) << "\n";
         f << "show_fps=" << (showFps ? 1 : 0) << "\n";
         f << "ff_low_res=" << (ffLowRes ? 1 : 0) << "\n";
+        f << "volume=" << volume << "\n";
         f << "start_button=" << (startMenu ? "menu" : "ds") << "\n";
         f << "battle_buttons=" << (battleButtons == 0 ? "corner" : battleButtons == 2 ? "panel" : "strip") << "\n";
         controls.Save(f);
@@ -3923,7 +3927,7 @@ int main(int argc, char** argv)
         M_WIDELINES, M_AUTODETAIL, M_WIDEGPU, M_GPU3D, M_SHOWFPS, M_BUTTONS, M_PADTOUCH, M_EMULATION,
         M_CONTROLS, M_STARTBTN, M_FAST, M_FFLOWRES, M_SAVESTATE, M_LOADSTATE, M_RESET, M_QUIT,
         M_DISPLAY, M_GRAPHICS, M_CONTROLMENU, M_BACK, M_CHEATS, M_NOTHING,
-        M_RA, M_RA_ON, M_RA_ACCOUNT, M_RA_GAME, M_RA_LOGIN, M_RA_TYPED, M_RA_CANCEL, M_BOTHVER,
+        M_VOLUME, M_RA, M_RA_ON, M_RA_ACCOUNT, M_RA_GAME, M_RA_LOGIN, M_RA_TYPED, M_RA_CANCEL, M_BOTHVER,
         M_CHEAT0 = 1000 // (M_CHEAT0 + i: cheat i, CHEATS)
     };
     enum { PAGE_MAIN, PAGE_KEYS, PAGE_DISPLAY, PAGE_GRAPHICS, PAGE_CONTROLS, PAGE_CHEATS, PAGE_RA };
@@ -3996,6 +4000,7 @@ int main(int argc, char** argv)
             add(M_SAVESTATE, "SAVE STATE", "");
             add(M_LOADSTATE, "LOAD STATE", "");
             add(M_FAST, "FAST FORWARD", onOff(fastLock));
+            add(M_VOLUME, "VOLUME", cfg.volume == 0 ? std::string("OFF") : std::to_string(cfg.volume) + "%");
             add(M_DISPLAY, "DISPLAY", "");
             add(M_GRAPHICS, "GRAPHICS", "");
             add(M_CONTROLMENU, "CONTROLS", "");
@@ -5419,6 +5424,10 @@ int main(int argc, char** argv)
             case M_FAST:
                 fastLock = !fastLock;
                 break;
+            case M_VOLUME:
+                // (Left goes down, right and A up; past 100 it comes round to OFF, and back.)
+                cfg.volume = (cfg.volume + (dir < 0 ? 100 : 10)) % 110;
+                break;
 #if !defined(__SWITCH__) && !defined(SSR_PHONE)
             case M_FFLOWRES:
                 cfg.ffLowRes = !cfg.ffLowRes;
@@ -6539,6 +6548,10 @@ int main(int argc, char** argv)
             if (audioStretch.Stretching() && speed == 1) slowdown *= 1.0 + 0.5 * (4800 - queued) / 4800.0;
             audioOut.clear();
             audioStretch.Process(audioBuf.data(), got, slowdown, audioOut);
+            // VOLUME: scaled here, after the game's own mixing (silence at OFF, still queued, so
+            // the timing the queue gives stays the same).
+            if (cfg.volume < 100)
+                for (int16_t& v : audioOut) v = (int16_t)(v * cfg.volume / 100);
             // Drop audio rather than let latency grow if the queue backs up.
             if (queued < 48000 / 4 && !audioOut.empty())
                 SDL_QueueAudio(audio, audioOut.data(), (Uint32)(audioOut.size() * 2));
@@ -6707,6 +6720,7 @@ int main(int argc, char** argv)
             // (What FAST FORWARD LOW RES is for, while it is the one chosen.)
             if (selId == M_FFLOWRES) hint = "ON: MORE FPS IN FAST FORWARD";
 #endif
+            if (selId == M_VOLUME) hint = "SOUND AND MUSIC: LEFT / RIGHT";
             // (What START BUTTON does, while it is the one chosen.)
             if (selId == M_STARTBTN) hint = cfg.startMenu ? "START OPENS THIS MENU" : "START IS THE DS START";
             if (selId == M_CONTROLS) hint = "GIVE ANY BUTTON ANOTHER KEY OR BUTTON";

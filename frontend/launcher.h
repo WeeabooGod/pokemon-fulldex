@@ -691,6 +691,8 @@ inline std::vector<Setting> SettingsList()
 #endif
 #endif
     l.push_back({ "show_fps", "FPS COUNTER", onOff, "0", "SHOWS THE FRAMES A SECOND IN A CORNER." });
+    l.push_back({ "volume", "VOLUME", { { "0", "OFF" }, { "10", "10%" }, { "20", "20%" }, { "30", "30%" }, { "40", "40%" }, { "50", "50%" }, { "60", "60%" }, { "70", "70%" }, { "80", "80%" }, { "90", "90%" }, { "100", "100%" } }, "100",
+                  "THE GAME'S SOUND AND MUSIC. OFF FOR NONE. ALSO IN THE PAUSE MENU WHILE YOU PLAY." });
 #ifdef __SWITCH__
     l.push_back({ "start_button", "START BUTTON", { { "menu", "PAUSE MENU" }, { "ds", "DS START" } }, "menu",
                   "PAUSE MENU: + OPENS THE PAUSE MENU WHILE PLAYING. DS START: + IS THE DS START BUTTON (THE GAMES HARDLY USE IT) AND + AND - TOGETHER OPEN THE MENU." });
@@ -779,7 +781,7 @@ inline const std::vector<SettingsGroup>& SettingsGroups()
 {
     static const std::vector<SettingsGroup> g = {
         // (What each holds is listed under it: its options' names, ShowGroups.)
-        { "!group0", "DISPLAY", "" },
+        { "!group0", "DISPLAY AND SOUND", "" },
         { "!group1", "GRAPHICS", "" },
         { "!group2", "CONTROLS", "" },
         { "!group3", "SHORTCUTS", "" },
@@ -791,7 +793,7 @@ inline const std::vector<SettingsGroup>& SettingsGroups()
 inline int GroupOf(const Setting& s)
 {
     if (!s.key) return !strcmp(s.name, "KEYS AND BUTTONS") ? 2 : 4;
-    static const char* display[] = { "view", "large_screen", "fullscreen", "smooth", "battle_buttons", "show_fps" };
+    static const char* display[] = { "view", "large_screen", "fullscreen", "smooth", "battle_buttons", "show_fps", "volume" };
     static const char* controls[] = { "start_button", "buttons", "pad_touch" };
     for (const char* k : display)
         if (!strcmp(s.key, k)) return 0;
