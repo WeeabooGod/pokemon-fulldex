@@ -69,8 +69,22 @@ controller, or SETTINGS at the top), or in the pause menu while you play (**Esc*
 | SHORTCUTS | DESKTOP SHORTCUTS (PC), HOME MENU ICONS (Switch): a shortcut for each game |
 
 The pause menu also has RESUME, SAVE STATE, LOAD STATE, FAST FORWARD, CHEATS
-([below](#cheats)), RESET GAME and QUIT (back to the game list). Not every platform has
+([below](#cheats)), RETROACHIEVEMENTS ([below](#retroachievements)), RESET GAME and QUIT
+(back to the game list). Not every platform has
 every setting: a phone and the Switch are always full screen, for one.
+
+## RetroAchievements
+
+Earn [RetroAchievements](https://retroachievements.org) as you play, on every platform: in the
+pause menu, **RETROACHIEVEMENTS**, turn it ON and **LOG IN** with your RetroAchievements
+account (a free one from their website). Your password goes to RetroAchievements once and is
+not kept: the program keeps only the sign-in they send back. Unlocks pop up as you play.
+
+- **Casual mode only:** save states, fast forward and cheats still work.
+- Achievements are paused while a cheat or OTHER VERSION POKEMON is on, and come back when
+  they are off.
+- With it on, WIDE MAP LOADING (Black, White, Black 2, White 2) stays off, so achievements
+  read the game's memory as on a DS.
 
 ## Cheats
 

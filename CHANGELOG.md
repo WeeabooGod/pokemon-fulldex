@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+- **RetroAchievements on every platform:** RETROACHIEVEMENTS in the pause menu (Windows, Linux,
+  Mac, Android, iPhone and iPad, Switch). Turn it on, LOG IN with your RetroAchievements account,
+  and unlocks pop up as you play. Casual mode: save states, fast forward and cheats still work
+  (achievements are paused while a cheat or OTHER VERSION POKEMON is on).
 - **The game list opens on ALL, with a heading for each console (DS, GBA, 3DS)**, and tabs along
   the top to show one console's games: L and R on the Switch, Q and E (or a controller's shoulder
   buttons) on a PC, or a tap on the tab on a phone. There are no 3DS games yet: its tab says so.

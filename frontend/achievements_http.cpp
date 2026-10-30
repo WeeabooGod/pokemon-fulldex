@@ -2,7 +2,9 @@
 //   Windows  WinHTTP, part of Windows (nothing more to ship)
 //   Linux    the system's libcurl, opened when first needed (every desktop Linux and SteamOS has
 //            it; without it achievements say so, and the game plays as ever)
-//   others   to come (Android, the Mac, iOS, the Switch): achievements say they are not there yet
+//   Android  Java's HttpURLConnection through JNI (the NDK has no TLS of its own)
+//   Mac, iOS achievements_http_apple.mm (NSURLSession)
+//   Switch   devkitPro's libcurl over libnx's sockets
 #include <string>
 
 #if defined(_WIN32)
@@ -11,6 +13,13 @@
 #elif defined(__linux__) && !defined(__ANDROID__)
 #include <dlfcn.h>
 #include <mutex>
+#elif defined(__ANDROID__)
+#include <jni.h>
+#include <SDL.h>
+#elif defined(__SWITCH__)
+#include <mutex>
+#include <switch.h>
+#include <curl/curl.h>
 #endif
 
 namespace Achievements
@@ -198,27 +207,158 @@ bool HttpPost(const std::string& url, const std::string& post, const std::string
     return res == 0;
 }
 
-#else
+#elif defined(__ANDROID__)
 
-const char* SystemName()
+const char* SystemName() { return "Android"; }
+bool Available() { return true; }
+
+bool HttpPost(const std::string& url, const std::string& post, const std::string& contentType,
+              const std::string& userAgent, int& status, std::string& body, std::string& error)
 {
-#if defined(__ANDROID__)
-    return "Android";
-#elif defined(__SWITCH__)
-    return "Nintendo Switch";
-#elif defined(__APPLE__)
-    return "Apple";
-#else
-    return "Unknown";
-#endif
+    // (SDL attaches this thread, the requests' own, to Java and detaches it when it ends.)
+    JNIEnv* env = (JNIEnv*)SDL_AndroidGetJNIEnv();
+    if (!env) { error = "no Java"; return false; }
+    if (env->PushLocalFrame(64) != 0) { env->ExceptionClear(); error = "no Java memory"; return false; }
+    auto failed = [&]() {
+        if (!env->ExceptionCheck()) return false;
+        env->ExceptionClear();
+        return true;
+    };
+    auto jstr = [&](const std::string& t) { return env->NewStringUTF(t.c_str()); };
+    bool ok = false;
+    error = "no connection";
+    do
+    {
+        jclass urlClass = env->FindClass("java/net/URL");
+        jclass connClass = env->FindClass("java/net/HttpURLConnection");
+        jclass inClass = env->FindClass("java/io/InputStream");
+        jclass outClass = env->FindClass("java/io/OutputStream");
+        if (failed() || !urlClass || !connClass || !inClass || !outClass) break;
+        jobject u = env->NewObject(urlClass, env->GetMethodID(urlClass, "<init>", "(Ljava/lang/String;)V"), jstr(url));
+        if (failed() || !u) { error = "bad address"; break; }
+        jobject conn = env->CallObjectMethod(u, env->GetMethodID(urlClass, "openConnection", "()Ljava/net/URLConnection;"));
+        if (failed() || !conn) break;
+        env->CallVoidMethod(conn, env->GetMethodID(connClass, "setConnectTimeout", "(I)V"), 10000);
+        env->CallVoidMethod(conn, env->GetMethodID(connClass, "setReadTimeout", "(I)V"), 30000);
+        const jmethodID prop = env->GetMethodID(connClass, "setRequestProperty", "(Ljava/lang/String;Ljava/lang/String;)V");
+        env->CallVoidMethod(conn, prop, jstr("User-Agent"), jstr(userAgent));
+        if (failed()) break;
+        if (!post.empty())
+        {
+            env->CallVoidMethod(conn, env->GetMethodID(connClass, "setRequestMethod", "(Ljava/lang/String;)V"), jstr("POST"));
+            env->CallVoidMethod(conn, prop, jstr("Content-Type"), jstr(contentType));
+            env->CallVoidMethod(conn, env->GetMethodID(connClass, "setDoOutput", "(Z)V"), JNI_TRUE);
+            if (failed()) break;
+            jobject out = env->CallObjectMethod(conn, env->GetMethodID(connClass, "getOutputStream", "()Ljava/io/OutputStream;"));
+            if (failed() || !out) break;
+            jbyteArray data = env->NewByteArray((jsize)post.size());
+            env->SetByteArrayRegion(data, 0, (jsize)post.size(), (const jbyte*)post.data());
+            env->CallVoidMethod(out, env->GetMethodID(outClass, "write", "([B)V"), data);
+            env->CallVoidMethod(out, env->GetMethodID(outClass, "close", "()V"));
+            if (failed()) break;
+        }
+        const jint code = env->CallIntMethod(conn, env->GetMethodID(connClass, "getResponseCode", "()I"));
+        if (failed()) break;
+        // (An error's body comes on the error stream: the server explains a wrong password there.)
+        jobject in = env->CallObjectMethod(conn, env->GetMethodID(connClass, code >= 400 ? "getErrorStream" : "getInputStream",
+                                                                  "()Ljava/io/InputStream;"));
+        if (failed()) break;
+        body.clear();
+        if (in)
+        {
+            const jmethodID read = env->GetMethodID(inClass, "read", "([BII)I");
+            jbyteArray buf = env->NewByteArray(8192);
+            while (body.size() < (8u << 20))
+            {
+                const jint n = env->CallIntMethod(in, read, buf, 0, 8192);
+                if (failed() || n < 0) break;
+                const size_t at = body.size();
+                body.resize(at + n);
+                env->GetByteArrayRegion(buf, 0, n, (jbyte*)&body[at]);
+            }
+            env->CallVoidMethod(in, env->GetMethodID(inClass, "close", "()V"));
+            failed();
+        }
+        env->CallVoidMethod(conn, env->GetMethodID(connClass, "disconnect", "()V"));
+        failed();
+        status = (int)code;
+        ok = true;
+    } while (false);
+    env->PopLocalFrame(nullptr);
+    return ok;
 }
 
+#elif defined(__SWITCH__)
+
+const char* SystemName() { return "Nintendo Switch"; }
+bool Available() { return true; }
+
+namespace
+{
+std::once_flag g_curlInit;
+bool g_curlOk = false;
+
+size_t Write(char* data, size_t size, size_t count, void* user)
+{
+    std::string* out = (std::string*)user;
+    if (out->size() + size * count > (8u << 20)) return 0;
+    out->append(data, size * count);
+    return size * count;
+}
+}
+
+bool HttpPost(const std::string& url, const std::string& post, const std::string& contentType,
+              const std::string& userAgent, int& status, std::string& body, std::string& error)
+{
+    // The console's network (libnx's sockets), started the first time it is needed and left
+    // open: the program ends with the console's own exit, which closes it.
+    std::call_once(g_curlInit, [] {
+        if (R_FAILED(socketInitializeDefault())) return;
+        g_curlOk = curl_global_init(CURL_GLOBAL_DEFAULT) == CURLE_OK;
+    });
+    if (!g_curlOk) { error = "no network (sockets)"; return false; }
+    CURL* c = curl_easy_init();
+    if (!c) { error = "no curl"; return false; }
+    curl_slist* headers = nullptr;
+    if (!post.empty()) headers = curl_slist_append(headers, ("Content-Type: " + contentType).c_str());
+    body.clear();
+    curl_easy_setopt(c, CURLOPT_URL, url.c_str());
+    curl_easy_setopt(c, CURLOPT_USERAGENT, userAgent.c_str());
+    curl_easy_setopt(c, CURLOPT_NOSIGNAL, 1L);
+    curl_easy_setopt(c, CURLOPT_FOLLOWLOCATION, 1L);
+    curl_easy_setopt(c, CURLOPT_CONNECTTIMEOUT, 10L);
+    curl_easy_setopt(c, CURLOPT_TIMEOUT, 30L);
+    if (!post.empty())
+    {
+        curl_easy_setopt(c, CURLOPT_POSTFIELDS, post.c_str());
+        curl_easy_setopt(c, CURLOPT_POSTFIELDSIZE, (long)post.size());
+    }
+    if (headers) curl_easy_setopt(c, CURLOPT_HTTPHEADER, headers);
+    curl_easy_setopt(c, CURLOPT_WRITEFUNCTION, Write);
+    curl_easy_setopt(c, CURLOPT_WRITEDATA, &body);
+    const CURLcode res = curl_easy_perform(c);
+    long code = 0;
+    curl_easy_getinfo(c, CURLINFO_RESPONSE_CODE, &code);
+    if (res != CURLE_OK) error = std::string("no connection (") + curl_easy_strerror(res) + ")";
+    if (headers) curl_slist_free_all(headers);
+    curl_easy_cleanup(c);
+    status = (int)code;
+    return res == CURLE_OK;
+}
+
+#elif defined(__APPLE__)
+
+// (achievements_http_apple.mm)
+
+#else
+
+const char* SystemName() { return "Unknown"; }
 bool Available() { return false; }
 
 bool HttpPost(const std::string&, const std::string&, const std::string&, const std::string&, int&, std::string&,
               std::string& error)
 {
-    error = "not in this version yet";
+    error = "not in this version";
     return false;
 }
 
