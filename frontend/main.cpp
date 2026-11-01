@@ -1317,7 +1317,6 @@ struct Settings
     // the bottom screen up.
     bool padTouch = false;
     bool showFps = false; // frames shown per second, in a corner
-    bool cheatDynamicWidth = true;
     int cheatTextSize = 10; // tenths of the usual menu text size (0.1X to 5X)
     // A controller's START (+ on the Switch) opens the pause menu instead of being the DS's
     // START, which the games hardly use (START BUTTON: PAUSE MENU or DS START).
@@ -1397,7 +1396,6 @@ struct Settings
             else if (k == "fps60") fps60 = v == "1";
             else if (k == "pad_touch") padTouch = v == "1";
             else if (k == "show_fps") showFps = v == "1";
-            else if (k == "cheat_dynamic_width") cheatDynamicWidth = v != "0";
             else if (k == "cheat_text_size") cheatTextSize = std::clamp(atoi(v.c_str()), 1, 50);
             else if (k == "volume") volume = std::clamp(atoi(v.c_str()) / 10 * 10, 0, 100);
             // (The game list's look, GAME LIST: kept here so saving does not drop them; COLOUR is the
@@ -1450,7 +1448,6 @@ struct Settings
         f << "fps60=" << (fps60 ? 1 : 0) << "\n";
         f << "pad_touch=" << (padTouch ? 1 : 0) << "\n";
         f << "show_fps=" << (showFps ? 1 : 0) << "\n";
-        f << "cheat_dynamic_width=" << (cheatDynamicWidth ? 1 : 0) << "\n";
         f << "cheat_text_size=" << cheatTextSize << "\n";
         f << "ff_low_res=" << (ffLowRes ? 1 : 0) << "\n";
         f << "volume=" << volume << "\n";
@@ -3960,13 +3957,13 @@ int main(int argc, char** argv)
         M_WIDELINES, M_AUTODETAIL, M_WIDEGPU, M_GPU3D, M_SHOWFPS, M_BUTTONS, M_PADTOUCH, M_EMULATION,
         M_CONTROLS, M_STARTBTN, M_FAST, M_FFLOWRES, M_SAVESTATE, M_LOADSTATE, M_RESET, M_QUIT,
         M_DISPLAY, M_SOUND, M_GRAPHICS, M_CONTROLMENU, M_BACK, M_CHEATS, M_NOTHING,
-        M_CHEATMENU, M_CHEATWIDTH, M_CHEATTEXT,
+        M_CHEATTEXT,
         M_VOLUME, M_RA, M_RA_ON, M_RA_ACCOUNT, M_RA_GAME, M_RA_LOGIN, M_RA_TYPED, M_RA_CANCEL, M_BOTHVER,
         M_RA_LIST, M_ACH_POINTS, M_ACH_STATUS, M_ACH_RARITY,
         M_CHEAT0 = 1000, // (M_CHEAT0 + i: visible row i, CHEATS)
         M_ACH0 = 30000   // (M_ACH0 + i: achievement i, ACHIEVEMENTS)
     };
-    enum { PAGE_MAIN, PAGE_KEYS, PAGE_DISPLAY, PAGE_GRAPHICS, PAGE_CONTROLS, PAGE_CHEATS, PAGE_RA, PAGE_SOUND, PAGE_RA_LIST, PAGE_RA_DETAIL, PAGE_CHEATMENU };
+    enum { PAGE_MAIN, PAGE_KEYS, PAGE_DISPLAY, PAGE_GRAPHICS, PAGE_CONTROLS, PAGE_CHEATS, PAGE_RA, PAGE_SOUND, PAGE_RA_LIST, PAGE_RA_DETAIL };
     // ACHIEVEMENTS (RETROACHIEVEMENTS' list): read from the set as the page opens.
     std::vector<Achievements::Row> achList;
     int achDetail = -1; // the one ACHIEVEMENTS' details are shown for (A on it)
@@ -4047,7 +4044,6 @@ int main(int argc, char** argv)
             add(M_SOUND, "SOUND", "");
             add(M_GRAPHICS, "GRAPHICS", "");
             add(M_CONTROLMENU, "CONTROLS", "");
-            add(M_CHEATMENU, "CHEAT UI", "");
             add(M_CHEATS, "CHEATS", cheats.On() ? std::to_string(cheats.On()) + " ON" : "");
             if (exclusives.Supported()) add(M_BOTHVER, "OTHER VERSION POKEMON", onOff(exclusives.on));
             if (Achievements::Available()) add(M_RA, "RETROACHIEVEMENTS", onOff(cfg.ra.on));
@@ -4071,6 +4067,7 @@ int main(int argc, char** argv)
             add(M_BATTLEBUTTONS, "BATTLE BUTTONS",
                 !funcWatchOn || pt.on ? "-" : cfg.battleButtons == 2 ? "PANEL" : cfg.battleButtons == 0 || !bw1.on ? "CORNER" : "STRIP");
             add(M_SHOWFPS, "FPS COUNTER", onOff(cfg.showFps));
+            add(M_CHEATTEXT, "CHEAT UI TEXT SCALE", Menu::TextSizeName(cfg.cheatTextSize));
             add(M_BACK, "BACK", "");
         }
         else if (menuPage == PAGE_SOUND)
@@ -4136,12 +4133,6 @@ int main(int argc, char** argv)
                 add(M_CHEAT0 + (int)i, label.c_str(), row.folder ? cheats.FolderValue(row.index)
                     : cheats.items[row.index].on ? "ON" : "OFF", false, row.folder);
             }
-            add(M_BACK, "BACK", "");
-        }
-        else if (menuPage == PAGE_CHEATMENU)
-        {
-            add(M_CHEATWIDTH, "DYNAMIC WIDTH", onOff(cfg.cheatDynamicWidth));
-            add(M_CHEATTEXT, "TEXT SIZE", Menu::TextSizeName(cfg.cheatTextSize));
             add(M_BACK, "BACK", "");
         }
         else if (menuPage == PAGE_RA_LIST)
@@ -5378,7 +5369,7 @@ int main(int argc, char** argv)
             if (nav.back && menuPage != PAGE_MAIN)
             {
                 backTo = menuPage == PAGE_DISPLAY ? M_DISPLAY : menuPage == PAGE_SOUND ? M_SOUND : menuPage == PAGE_GRAPHICS ? M_GRAPHICS
-                       : menuPage == PAGE_CHEATS ? M_CHEATS : menuPage == PAGE_RA ? M_RA : menuPage == PAGE_CHEATMENU ? M_CHEATMENU : M_CONTROLMENU;
+                       : menuPage == PAGE_CHEATS ? M_CHEATS : menuPage == PAGE_RA ? M_RA : M_CONTROLMENU;
                 nav = MenuInput();
             }
             else if (nav.back)
@@ -5426,14 +5417,6 @@ int main(int argc, char** argv)
                 for (auto& f : cheats.folders) f.expanded = false;
                 goPage(PAGE_CHEATS, -1);
                 hit = -1;
-                break;
-            case M_CHEATMENU:
-                goPage(PAGE_CHEATMENU, -1);
-                hit = -1;
-                break;
-            case M_CHEATWIDTH:
-                cfg.cheatDynamicWidth = !cfg.cheatDynamicWidth;
-                cfg.Save(opt.config);
                 break;
             case M_CHEATTEXT:
                 cfg.cheatTextSize = std::clamp(cfg.cheatTextSize + (dir < 0 ? -1 : 1), 1, 50);
@@ -5500,7 +5483,7 @@ int main(int argc, char** argv)
                 }
                 if (backTo < 0)
                     backTo = menuPage == PAGE_DISPLAY ? M_DISPLAY : menuPage == PAGE_SOUND ? M_SOUND : menuPage == PAGE_GRAPHICS ? M_GRAPHICS
-                           : menuPage == PAGE_CHEATS ? M_CHEATS : menuPage == PAGE_RA ? M_RA : menuPage == PAGE_CHEATMENU ? M_CHEATMENU : M_CONTROLMENU;
+                           : menuPage == PAGE_CHEATS ? M_CHEATS : menuPage == PAGE_RA ? M_RA : M_CONTROLMENU;
                 goPage(PAGE_MAIN, backTo);
                 hit = -1;
                 break;
@@ -6897,7 +6880,7 @@ int main(int argc, char** argv)
             std::string hint = touchPadUsed && touchPad.visible ? "TAP: CHOOSE   OUTSIDE: BACK"
                                : btn(Controls::A) + ": SELECT   " + btn(Controls::B) + ": BACK";
             const int selId = menu.selected >= 0 && menu.selected < (int)menuIds.size() ? menuIds[menu.selected] : -1;
-            static const char* pageTitle[] = { "", "KEYS AND BUTTONS", "DISPLAY", "GRAPHICS", "CONTROLS", "CHEATS", "RETROACHIEVEMENTS", "SOUND", "ACHIEVEMENTS", "ACHIEVEMENT", "CHEAT UI" };
+            static const char* pageTitle[] = { "", "KEYS AND BUTTONS", "DISPLAY", "GRAPHICS", "CONTROLS", "CHEATS", "RETROACHIEVEMENTS", "SOUND", "ACHIEVEMENTS", "ACHIEVEMENT" };
             if (menuPage == PAGE_KEYS)
             {
                 if (!(touchPadUsed && touchPad.visible)) hint = btn(Controls::A) + ": CHANGE   " + btn(Controls::B) + ": BACK";
@@ -6922,8 +6905,6 @@ int main(int argc, char** argv)
             if (selId == M_CONTROLS) hint = "GIVE ANY BUTTON ANOTHER KEY OR BUTTON";
             if (selId == M_BOTHVER) hint = "WILD POKEMON OF BOTH VERSIONS";
             if (selId == M_CHEATS) hint = cheats.items.empty() ? "NONE FOUND: SEE THE README" : "ACTION REPLAY CODES";
-            if (selId == M_CHEATMENU) hint = "DYNAMIC WIDTH / TEXT SIZE";
-            if (selId == M_CHEATWIDTH) hint = "ON: FITS THE CHEAT NAMES TO THE WINDOW";
             if (selId == M_CHEATTEXT) hint = "0.1X TO 5X IN 0.1X STEPS";
             if (selId == M_NOTHING) hint = "GET USRCHEAT.DAT: SEE THE README";
             // RETROACHIEVEMENTS.
@@ -6964,7 +6945,7 @@ int main(int argc, char** argv)
                     if (!r.unlocked && !r.progress.empty()) note += " SO FAR: " + r.progress;
                 }
             }
-            const MenuStyle style = menuPage == PAGE_CHEATS ? MenuStyle{ cfg.cheatTextSize, cfg.cheatDynamicWidth, true } : MenuStyle{};
+            const MenuStyle style = menuPage == PAGE_CHEATS ? MenuStyle{ cfg.cheatTextSize, true, true } : MenuStyle{};
             if (menuPage == PAGE_CHEATS && cheatLayout.hint.empty())
                 cheatLayout.hint = btn(Controls::A) + ": OPEN / CLOSE   " + btn(Controls::B) + ": BACK";
             menu.Draw(canvas, title, hint, note, style, menuPage == PAGE_CHEATS ? &cheatLayout : nullptr);

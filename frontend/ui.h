@@ -311,6 +311,7 @@ struct Menu
         barX = barStep = 0;
         const auto& sizingItems = layout ? layout->items : items;
         const auto& sizingHint = layout ? layout->hint : hint;
+        // At 1X, use the original menu's resolution-based glyph size unchanged.
         const int baseScale = std::max(1, c.h / 240);
         const double textScale = baseScale * std::clamp(style.textTenths, 1, 50) / 10.0;
         // Keep the title, instructions and notes usable even with very large list text.
@@ -352,7 +353,11 @@ struct Menu
             if (pos < note.size()) noteLines.back() = noteLines.back().substr(0, std::max(0, noteChars - 3)) + "...";
         }
         const int noteLineH = std::max(1, (int)std::round(9 * detailScale));
-        const int fixedH = (hasTitle ? detailLineH : 0) + 2 * detailLineH + 6 * scale;
+        // The cheat page needs one footer glyph row and padding, rather than two line heights.
+        // Reclaim the unused space for complete list rows, keeping the description area fixed.
+        const int footerTextH = std::max(1, (int)std::round(7 * detailScale));
+        const int fixedH = (hasTitle ? detailLineH : 0)
+                         + (layout ? footerTextH + 11 * scale : 2 * detailLineH + 6 * scale);
         const int available = c.h - 2 * marginY - 2 * scale;
         int noteRows = layout ? 4 : (int)noteLines.size();
         while (noteRows && fixedH + lineH + noteRows * noteLineH + 9 * scale > available)
@@ -417,7 +422,14 @@ struct Menu
             y += lineH;
         }
         const std::string footer = Canvas::FitText(hint, boxW - 12 * scale, detailScale);
-        const int footerY = drawnFirstY + slots * lineH + 4 * scale;
+        int footerY = drawnFirstY + slots * lineH + 4 * scale;
+        if (layout && slots)
+        {
+            // Balance the visible gap above and below the guide, including the last row's inset.
+            const int textInset = std::max(0, (lineH - (int)std::ceil(7 * textScale)) / 2);
+            const int textH = std::max(1, (int)std::round(7 * textScale));
+            footerY -= std::max(0, lineH - textInset - textH) / 2;
+        }
         c.Text(bx + (boxW - Canvas::TextWidth(footer, detailScale)) / 2, footerY, footer, detailScale, hintCol);
         if (noteH)
         {

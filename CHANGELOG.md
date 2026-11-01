@@ -2,11 +2,11 @@
 
 ## Unreleased
 
-- **Cheat folders open and close**, start closed and show how many codes are on. CHEAT UI in
-  SETTINGS and the pause menu offers DYNAMIC WIDTH and TEXT SIZE (0.1X to 5X, starting at 1X).
-  Long names fit the window with space at both sides, and holding up or down scrolls after a
-  quarter of a second. The cheat window stays the same size while browsing, and cheats are
-  indented beyond their folder names.
+- **Dynamic Cheat Display and Folders** Cheats organized in folders are properly grouped, folders
+  displays how many cheats are on. DISPLAY in SETTINGS and the pause menu offers a CHEAT UI TEXT SCALE
+  to change the text size, useful for different display sizes. Allowed for input to scroll selection
+  so long cheat databases arn't a chore to scroll through. Tighter balanced spacing around the button
+  guide for consistancy, seems to allow room for another row in the entry.
 - **A new address: github.com/mamesj/pokemon-fulldex** (the old pokemon-ds-widescreen address
   still leads there). The bug report link, the PC download's `README.txt` and the Linux
   AppImage's updates use it.
