@@ -862,7 +862,7 @@ inline std::vector<Setting> SettingsList()
     std::vector<std::pair<std::string, std::string>> textSizes;
     for (int size = 1; size <= 50; size++) textSizes.push_back({ std::to_string(size), Menu::TextSizeName(size) });
     l.push_back({ "cheat_text_size", "CHEAT UI TEXT SCALE", textSizes, "10",
-                  "THE CHEAT LIST TEXT SCALE: 0.1X TO 5X IN 0.1X STEPS. 1X IS THE ORIGINAL MENU TEXT SIZE. THE TITLE AND HELP STAY SMALL ENOUGH TO FIT." });
+                  "CHEAT LIST TEXT SCALE: 1X IS DEFAULT." });
     l.push_back({ "volume", "VOLUME", { { "0", "OFF" }, { "10", "10%" }, { "20", "20%" }, { "30", "30%" }, { "40", "40%" }, { "50", "50%" }, { "60", "60%" }, { "70", "70%" }, { "80", "80%" }, { "90", "90%" }, { "100", "100%" } }, "100",
                   "THE GAME'S SOUND AND MUSIC. OFF FOR NONE. ALSO IN THE PAUSE MENU WHILE YOU PLAY." });
 #ifdef __SWITCH__

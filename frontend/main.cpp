@@ -6905,7 +6905,6 @@ int main(int argc, char** argv)
             if (selId == M_CONTROLS) hint = "GIVE ANY BUTTON ANOTHER KEY OR BUTTON";
             if (selId == M_BOTHVER) hint = "WILD POKEMON OF BOTH VERSIONS";
             if (selId == M_CHEATS) hint = cheats.items.empty() ? "NONE FOUND: SEE THE README" : "ACTION REPLAY CODES";
-            if (selId == M_CHEATTEXT) hint = "0.1X TO 5X IN 0.1X STEPS";
             if (selId == M_NOTHING) hint = "GET USRCHEAT.DAT: SEE THE README";
             // RETROACHIEVEMENTS.
             // (Each at most about 30 letters: the width of the menu's box.)
